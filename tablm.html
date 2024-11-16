@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="pico.min.css">
+    <style>
+      input, textarea, input[type="submit"], input[type="text"]{
+        padding-top: 0px;
+        padding-bottom: 0px;
+        padding-right: 5px;
+        padding-left: 5px;
+        font-size: small;
+      }
+
+      input, input[type="submit"]{
+        height: 1.5rem;
+      }
+
+      #settings, #loading-bar, #strengths-growths{
+        display: none;
+      }
+    </style>
+    <title>G360 copilot</title>
+  </head>
+  <body>
+    <main class="container-fluid" >
+      <section id="loading-bar">
+      GrabGPT is thinking, please wait <progress  />
+     </section>
+      <section id="results" class="container" style="white-space: pre-line"></section>
+      <section id="tabs-list" class="container" ></section>
+      <form>
+          <fieldset>
+            <label>
+              <input type="checkbox" id="display-settings"  />
+              Display settings
+            </label>
+          </fieldset>
+          <fieldset id="settings">
+            <label>
+                GrabGPT api key <input id="api-key" type="text"/>
+            </label>
+            <label >
+                Model <input id="model-type" type="text" value="gpt-35-turbo">
+            </label>
+            <label >
+                KA summary System prompt <textarea id="system-prompt" rows="5"></textarea>
+            </label>
+            <label >
+                Feeback system prompt <textarea id="feedback-system-prompt" rows="5"></textarea>
+            <label>
+           </fieldset>
+        <input id="submit" type="submit" value="Summarize key achievements">
+      </form>
+      <form>
+        <fieldset id="ka-feedback-container">  
+        </fieldset>
+        <input id="generateFeedback" type="submit" value="Generate feedback">
+        <fieldset id="strengths-growths">  
+            <label >
+                Strengths <textarea id="strengths" rows="5"></textarea>
+            </label>
+            <label >
+                Growth areas <textarea id="growth-areas" rows="5"></textarea>
+            </label>
+         <input id="copyTo360" type="submit" value="Copy to G360">
+        </fieldset>
+      </form>
+    </main>
+    <script src="tablm.js"></script>
+  </body>
+</html>

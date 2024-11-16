@@ -1,0 +1,36 @@
+{
+    "manifest_version": 3,
+    "name": "TabLM",
+    "version": "1.0",
+    "description": "A copilot to help you with the mess of browser tabs",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "sidePanel",
+        "storage",
+        "tabs"
+    ],
+    "host_permissions": [
+        "https://public-api.grabgpt.managed.catwalk-k8s.stg-myteksi.com/*",
+        "https://grab360-v2.grab.com/*"
+    ],
+    "action": {
+        "default_title": "Click to open panel",
+        "default_icon": {
+            "16": "icon16.png",
+            "48": "icon48.png",
+            "128": "icon128.png"
+        }
+    },
+    "background": {
+        "service_worker": "service-worker.js"
+    },
+    "side_panel": {
+        "default_path": "tablm.html"
+    },
+    "icons": {
+        "16": "icon16.png",
+        "48": "icon48.png",
+        "128": "icon128.png"
+    }
+}
