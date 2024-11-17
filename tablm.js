@@ -1,11 +1,3 @@
-//Globals - don't kill me
-const summarizeAchievementsSystemPrompt = ``;
-
-const feedbackSystemPrompt = ``;
-
-var grabberName = '';
-var keyAchievementsText = '';
-
 // Starts here
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
@@ -14,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     //registerSubmitEventListener(); 
     //registerDisplaySettingsListener();
 });
+
 // New function to format tab information
 function formatTabInfo(tabInfo) {
     let output = '<ul>';
@@ -52,35 +45,6 @@ function formatDuration(ms) {
 }
 
 
-function registerDisplaySettingsListener(){
-    document.getElementById('display-settings').addEventListener('change', function() {
-        if(this.checked) {
-            document.getElementById('settings').style.display = 'block';
-        } else {
-            document.getElementById('settings').style.display = 'none';
-        }
-    });
-}
-
-function registerSubmitEventListener(){
-    document.getElementById('submit').addEventListener('click', function(event) {
-        event.preventDefault();
-        const systemPrompt = document.getElementById('system-prompt').value.trim()
-        saveFields({systemPrompt: systemPrompt});
-        fetchAPI(keyAchievementsText, systemPrompt, populateFeedbackRows);
-    });
-};
-
-
-//Functions to update or retrieve from the the Extension UI
-function updateNotification(text, overwrite=false) {
-    if(overwrite) {
-        document.getElementById('results').textContent = text;
-    } else {
-        document.getElementById('results').textContent = text + '\n' + document.getElementById('results').textContent;
-    }
-}
-
 //Functions to update or retrieve from the the Extension UI
 function updateTabsList(tabListHTML) {
     document.getElementById('tabs-list').innerHTML = tabListHTML;
@@ -100,12 +64,6 @@ function registerTabCloseListeners() {
                 });
             });
         });
-    });
-}
-//TODO: add the feedbackSystemPrompt value
-function saveFields(fieldProperties){
-    chrome.storage.local.set(fieldProperties, function() {
-        console.log('Settings saved');
     });
 }
 
@@ -129,6 +87,44 @@ function retrieveChromeTabs(setFn) {
         setFn(tabInfo);
     });
 }
+
+//Below this, code is not NOT USED - to be removed
+function registerDisplaySettingsListener(){
+    document.getElementById('display-settings').addEventListener('change', function() {
+        if(this.checked) {
+            document.getElementById('settings').style.display = 'block';
+        } else {
+            document.getElementById('settings').style.display = 'none';
+        }
+    });
+}
+
+function registerSubmitEventListener(){
+    var keyAchievementsText = '';
+    document.getElementById('submit').addEventListener('click', function(event) {
+        event.preventDefault();
+        const systemPrompt = document.getElementById('system-prompt').value.trim()
+        saveFields({systemPrompt: systemPrompt});
+        fetchAPI(keyAchievementsText, systemPrompt, populateFeedbackRows);
+    });
+};
+
+
+//Functions to update or retrieve from the the Extension UI
+function updateNotification(text, overwrite=false) {
+    if(overwrite) {
+        document.getElementById('results').textContent = text;
+    } else {
+        document.getElementById('results').textContent = text + '\n' + document.getElementById('results').textContent;
+    }
+}
+
+function saveFields(fieldProperties){
+    chrome.storage.local.set(fieldProperties, function() {
+        console.log('Settings saved');
+    });
+}
+
 
 // Functions that interact with GrabGPT API
 function populateModelList(){
