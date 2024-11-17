@@ -17,8 +17,9 @@ function formatTabInfo(tabInfo) {
         for (let tabId in tabInfo[windowId]) {
             const tab = tabInfo[windowId][tabId];
             const duration = formatDuration(tab.openDuration);
+
             output += `<li class="tab-item" draggable="true" data-tab-id="${tabId}" data-window-id="${windowId}">
-                <div><a href="#" class="tab-link" data-tab-id="${tabId}">${tab.title}</a></div>
+                <div><a href="#" class="tab-link" data-tab-id="${tabId}">${tab.title}</a>(${tab.domain})</div>
                 <div>Open for: ${duration}</div>
                 <button class="close-tab-btn outline" data-tab-id="${tabId}">Close Tab</button>
             </li>`;
@@ -91,10 +92,12 @@ function retrieveChromeTabs(setFn) {
             if (!tabInfo[tab.windowId]) {
                 tabInfo[tab.windowId] = {};
             }
+            const domain = new URL(tab.url).hostname;
             tabInfo[tab.windowId][tab.id] = {
                 url: tab.url,
                 title: tab.title,
-                openDuration: currentTime - tab.lastAccessed // time in milliseconds
+                domain: domain,
+                openDuration: currentTime - tab.lastAccessed
             };
         });
         setFn(tabInfo);
