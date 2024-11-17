@@ -1,14 +1,15 @@
 // Starts here
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
-    retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result))  ;} );
+    retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result));} );
     //populateModelList();
     //registerSubmitEventListener(); 
     //registerDisplaySettingsListener();
 });
 
-// New function to format tab information
+// Format the tab information in a way that is easily read
 function formatTabInfo(tabInfo) {
+    console.log('tabInfo', tabInfo);
     let output = '<ul>';
     
     for (let windowId in tabInfo) {
@@ -17,7 +18,7 @@ function formatTabInfo(tabInfo) {
             const tab = tabInfo[windowId][tabId];
             const duration = formatDuration(tab.openDuration);
             output += `<li class="tab-item" draggable="true" data-tab-id="${tabId}" data-window-id="${windowId}">
-                <div><a href="${tab.url}">${tab.title}</a></div>
+                <div><a href="#" class="tab-link" data-tab-id="${tabId}">${tab.title}</a></div>
                 <div>Open for: ${duration}</div>
                 <button class="close-tab-btn outline" data-tab-id="${tabId}">Close Tab</button>
             </li>`;
@@ -49,6 +50,7 @@ function formatDuration(ms) {
 function updateTabsList(tabListHTML) {
     document.getElementById('tabs-list').innerHTML = tabListHTML;
     registerTabCloseListeners();
+    registerBringTabForward();
 }
 
 // Add this new function to handle tab closure
@@ -60,8 +62,20 @@ function registerTabCloseListeners() {
                 // Refresh the tab list after closing
                 retrieveChromeTabs((result) => { 
                     updateTabsList(formatTabInfo(result));
-                    registerTabCloseListeners(); // Re-register listeners for new buttons
                 });
+            });
+        });
+    });
+}
+
+function registerBringTabForward() {
+    document.querySelectorAll('.tab-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabId = parseInt(this.getAttribute('data-tab-id'));
+            console.log("tabId", tabId, "clicked");
+            chrome.tabs.update(tabId, { active: true }, function(tab) {
+                chrome.windows.update(tab.windowId, { focused: true });
             });
         });
     });
@@ -74,7 +88,6 @@ function retrieveChromeTabs(setFn) {
         
         // Group tabs by windowId
         tabs.forEach(tab => {
-            console.log("tab inspect", tab.windowId, tab.id);
             if (!tabInfo[tab.windowId]) {
                 tabInfo[tab.windowId] = {};
             }
