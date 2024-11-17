@@ -10,13 +10,9 @@ var keyAchievementsText = '';
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
     retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result))  ;} );
-    //retrieveKeyAchievements((result) => {keyAchievementsText = result.trim(); updateNotification("Key achievements retrieved.");console.log('ka set>>>', keyAchievementsText);} );
     //populateModelList();
-    //populateFields();
     //registerSubmitEventListener(); 
-    //registerGenerateFeedbackEventListener();
     //registerDisplaySettingsListener();
-    //registerCopyTo360Listener();
 });
 // New function to format tab information
 function formatTabInfo(tabInfo) {
@@ -55,14 +51,6 @@ function formatDuration(ms) {
     }
 }
 
-function registerCopyTo360Listener(){
-    document.getElementById('copyTo360').addEventListener('click', function(event) {
-        const strengths = document.getElementById('strengths').value.trim();
-        const growthAreas = document.getElementById('growth-areas').value.trim();
-        event.preventDefault();
-        populateStrengthsAndGrowths(strengths, growthAreas);
-    });
-}
 
 function registerDisplaySettingsListener(){
     document.getElementById('display-settings').addEventListener('change', function() {
@@ -73,6 +61,7 @@ function registerDisplaySettingsListener(){
         }
     });
 }
+
 function registerSubmitEventListener(){
     document.getElementById('submit').addEventListener('click', function(event) {
         event.preventDefault();
@@ -82,82 +71,6 @@ function registerSubmitEventListener(){
     });
 };
 
-function registerGenerateFeedbackEventListener(){
-    document.getElementById('generateFeedback').addEventListener('click', function(event) {
-        event.preventDefault();
-        console.log('generate feedback clicked');
-
-        //check if all fields are empty
-        var emptyFields = true;
-        document.querySelectorAll('.feedback[data-type="strength"],.feedback[data-type="growth"]').forEach(element => {
-            if(element.value.trim()!== '') {
-                emptyFields = false;
-            }
-        });
-
-        if (emptyFields) {
-            alert('Please fill some Growth or Strength fields before generating feedback');
-            return;
-        }
-
-        const feedbackArr = retrieveFeedbacks();
-        const feedbackUserPrompt = createFeedbackUserPrompt(grabberName, keyAchievementsText , feedbackArr);
-        const fbSystemPrompt = document.getElementById('feedback-system-prompt').value.trim()
-        saveFields({feedbackSystemPrompt: fbSystemPrompt});
-        fetchAPI(feedbackUserPrompt, feedbackSystemPrompt, (result)=> {
-            const { strengthsHTML, growthAreasHTML } = createStrengthsAndGrowthsHTML(result);
-            document.getElementById('strengths-growths').style.display = 'block';
-            document.getElementById('strengths').innerHTML = strengthsHTML;
-            document.getElementById('growth-areas').innerHTML = growthAreasHTML;
-        }); 
-    });
-};
-
-function createStrengthsAndGrowthsHTML(generatedFeedback) {
-    const strengthsHTML = generatedFeedback.strengths.join('<br/>');
-    const growthAreasHTML = generatedFeedback.growths.join('<br/>');
-    return { strengthsHTML, growthAreasHTML };
-}
-
-function populateFields(){
-    chrome.storage.local.get(['modelType', 'systemPrompt', 'apiKey', 'feedbackSytemPrompt'], function(items) {
-        document.getElementById('model-type').value = items.modelType || 'gpt-4';
-        document.getElementById('system-prompt').value = items.systemPrompt || summarizeAchievementsSystemPrompt;
-        document.getElementById('feedback-system-prompt').value = items.feedbackSystemPrompt || feedbackSystemPrompt;
-        document.getElementById('api-key').value = items.apiKey || '';
-    });
-}
-// Prompt generation code
-function createFeedbackUserPrompt(name, achievements, feedbackArr) {
-    const feedbacks = createFeedbacksPrompt(feedbackArr);
-    return `
-        <name>
-        ${name} 
-        </name>
-
-        <achievements> 
-        ${achievements}
-        </achievements>
-
-        ${feedbacks}
-        `;
-}
-
-function createFeedbacksPrompt(feedbacks) {
-    var feedbacksPrompt = '';
-    feedbacks.forEach((feedback)=>{
-        if(feedback.strength.trim() =='' && feedback.growth.trim() =='') {
-            return; 
-        }
-        feedbacksPrompt += `<feedback>\n
-        Context: ${feedback.context}\n
-        Growth:  ${feedback.growth}\n
-        Strength: ${feedback.strength}\n
-        </feedback>\n
-        `;
-    });
-    return feedbacksPrompt;
-}
 
 //Functions to update or retrieve from the the Extension UI
 function updateNotification(text, overwrite=false) {
@@ -173,43 +86,6 @@ function updateTabsList(tabListHTML) {
     document.getElementById('tabs-list').innerHTML = tabListHTML;
 }
 
-function retrieveFeedbacks() {
-    var feedbackArr = [];
-    document.querySelectorAll('.feedback[data-id]').forEach(el => {
-        if (feedbackArr[el.dataset.id] == undefined ) {
-            feedbackArr[el.dataset.id] = {
-                context: '',
-                growth: '',
-                strength: ''
-            }
-        }
-        feedbackArr[el.dataset.id][el.dataset.type] = el.value;
-        //console.log(el.dataset.id, el.dataset.type, el.value);
-    });
-    return feedbackArr;
-};
-
-function createFeedbackRowHTML(id, label, kaSummary) {
-    return `
-    <div id="ka-feedback-${id}" class="grid">
-        <div> <label class="ka-label"> ${label} </label> <textarea data-id="${id}" data-type="context" class="feedback" rows="5" readonly> ${kaSummary}</textarea></div>
-        <div><label> Strength </label> <textarea data-id="${id}" class="feedback" data-type="strength" rows="5"> </textarea></div>
-        <div><label> Growth </label> <textarea data-id="${id}" class="feedback" data-type="growth" rows="5"> </textarea></div>
-    </div>
-    `;
-}
-
-function populateFeedbackRows(kaSummmaries) {
-    const feedbackContainer = document.getElementById('ka-feedback-container');
-    feedbackContainer.innerHTML = '';
-
-    kaSummmaries.unshift('General feedback');
-    kaSummmaries.forEach((ka, idx) => {
-        feedbackContainer.innerHTML += createFeedbackRowHTML(idx, idx, ka)
-    });
-}
-
-
 //TODO: add the feedbackSystemPrompt value
 function saveFields(fieldProperties){
     chrome.storage.local.set(fieldProperties, function() {
@@ -217,44 +93,6 @@ function saveFields(fieldProperties){
     });
 }
 
-// G360 page scraper functions
-function setFeedbackTextAreas(strengthsHTML, growthAreasHTML){
-    const el1 = document.querySelector('#rich_text_2_feedbackGuide');
-    if (el1) {
-        el1.remove();
-    }
-    document.querySelector('#rich_text_2_editor .ql-editor').innerHTML = strengthsHTML;
-    const el2 = document.querySelector('#rich_text_3_feedbackGuide');
-    if (el2) {
-        el2.remove();
-    }
-    document.querySelector('#rich_text_3_editor .ql-editor').innerHTML = growthAreasHTML;
-}
-
-function populateStrengthsAndGrowths(strengthsHTML, growthAreasHTML) {
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          func: setFeedbackTextAreas,
-          args: [strengthsHTML, growthAreasHTML],
-        }, function(results) {
-            updateNotification('Feeback populated');
-        });
-    });
-}
-
-function getNameText() {
-    const cssSelector = '.UserCard__title___2vsPB';
-    const element = document.querySelector(cssSelector);
-    return element ? element.innerText : '';
-}
-
-function getKeyAchievementsText() {
-    const cssSelector = '.TextCard__container___2RuUz';
-    const element = document.querySelector(cssSelector);
-    return element ? element.innerText : '';
-}
-//
 function retrieveChromeTabs(setFn) {
     chrome.tabs.query({}, function(tabs) {
         let tabInfo = {};
@@ -276,18 +114,7 @@ function retrieveChromeTabs(setFn) {
     });
 }
 
-function retrieveKeyAchievements(setKeyAchievementsFn) {
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          function: getKeyAchievementsText,
-        }, function(results) {
-           setKeyAchievementsFn(results[0].result);
-        });
-    });
-}
-
-// Functions that interact with GrabGTP API
+// Functions that interact with GrabGPT API
 function populateModelList(){
     fetch('https://public-api.grabgpt.managed.catwalk-k8s.stg-myteksi.com/models')
         .then(response => {
