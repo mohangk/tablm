@@ -19,14 +19,14 @@ function formatTabInfo(tabInfo) {
     let output = '<ul>';
     
     for (let windowId in tabInfo) {
-        output += `<li>Window ${windowId}:<ul>`;
+        output += `<li class="window-container" data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
         for (let tabId in tabInfo[windowId]) {
             const tab = tabInfo[windowId][tabId];
             const duration = formatDuration(tab.openDuration);
-            output += `<li>
-                <div>${tab.title}</div>
-                <div><a href="${tab.url}">${tab.url}</a></div>
+            output += `<li class="tab-item" draggable="true" data-tab-id="${tabId}" data-window-id="${windowId}">
+                <div><a href="${tab.url}">${tab.title}</a></div>
                 <div>Open for: ${duration}</div>
+                <button class="close-tab-btn outline" data-tab-id="${tabId}">Close Tab</button>
             </li>`;
         }
         output += '</ul></li>';
@@ -84,8 +84,24 @@ function updateNotification(text, overwrite=false) {
 //Functions to update or retrieve from the the Extension UI
 function updateTabsList(tabListHTML) {
     document.getElementById('tabs-list').innerHTML = tabListHTML;
+    registerTabCloseListeners();
 }
 
+// Add this new function to handle tab closure
+function registerTabCloseListeners() {
+    document.querySelectorAll('.close-tab-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const tabId = parseInt(this.getAttribute('data-tab-id'));
+            chrome.tabs.remove(tabId, function() {
+                // Refresh the tab list after closing
+                retrieveChromeTabs((result) => { 
+                    updateTabsList(formatTabInfo(result));
+                    registerTabCloseListeners(); // Re-register listeners for new buttons
+                });
+            });
+        });
+    });
+}
 //TODO: add the feedbackSystemPrompt value
 function saveFields(fieldProperties){
     chrome.storage.local.set(fieldProperties, function() {
