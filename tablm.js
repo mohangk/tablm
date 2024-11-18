@@ -1,10 +1,26 @@
-// Starts here
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
-    retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result));} );
-    //populateModelList();
-    //registerSubmitEventListener(); 
-    //registerDisplaySettingsListener();
+    retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result)); });
+    
+    // Add Chrome tab event listeners
+    chrome.tabs.onCreated.addListener(() => {
+        console.log("adding tab");
+        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result)); });
+
+    });
+    
+    chrome.tabs.onRemoved.addListener(() => {
+        console.log("removing tab");
+        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result)); });
+    });
+
+    // Add listener for URL changes
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        if (changeInfo.url) {
+            console.log("tab URL changed");
+            retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result)); });
+        }
+    });
 });
 
 // Format the tab information in a way that is easily read
@@ -14,6 +30,11 @@ function formatTabInfo(tabInfo) {
     
     for (let windowId in tabInfo) {
         output += `<li class="window-container" data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
+        
+        // Convert tabs object to array and sort by domain
+        //const sortedTabs = Object.entries(tabInfo[windowId])
+        //    .sort((a, b) => a[1].domain.localeCompare(b[1].domain));
+        
         const sortedTabs = Object.entries(tabInfo[windowId])
             .sort((a, b) => a[1].index - b[1].index);
         
