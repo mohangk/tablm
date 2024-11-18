@@ -14,8 +14,10 @@ function formatTabInfo(tabInfo) {
     
     for (let windowId in tabInfo) {
         output += `<li class="window-container" data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
-        for (let tabId in tabInfo[windowId]) {
-            const tab = tabInfo[windowId][tabId];
+        const sortedTabs = Object.entries(tabInfo[windowId])
+            .sort((a, b) => a[1].index - b[1].index);
+        
+        for (let [tabId, tab] of sortedTabs) {
             const duration = formatDuration(tab.openDuration);
 
             output += `<li class="tab-item" draggable="true" data-tab-id="${tabId}" data-window-id="${windowId}">
@@ -92,12 +94,18 @@ function retrieveChromeTabs(setFn) {
             if (!tabInfo[tab.windowId]) {
                 tabInfo[tab.windowId] = {};
             }
-            const domain = new URL(tab.url).hostname;
+            let domain = '';
+            try {
+                domain = new URL(tab.url).hostname;
+            } catch (error) {
+                console.warn(`Failed to parse URL for tab ${tab.id}:`, error);
+            }
             tabInfo[tab.windowId][tab.id] = {
                 url: tab.url,
                 title: tab.title,
                 domain: domain,
-                openDuration: currentTime - tab.lastAccessed
+                openDuration: currentTime - tab.lastAccessed,
+                index: tab.index
             };
         });
         setFn(tabInfo);
