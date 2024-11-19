@@ -1,5 +1,10 @@
 ## TabLM
 
+### About
+
+A simple Chrome extension to help bring more "smarts" to managing your tabs
+
+### User stories
 
 1. List out all the tabs in the current window (done)
 2. Add the ability to close tabs (done)
