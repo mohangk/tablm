@@ -1,42 +1,57 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
-    retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result)); });
+    retrieveChromeTabs((result) => { 
+        updateTabsList(formatTabInfo(result, getSortType())); 
+    });
+    
+    // Add sort checkbox listener
+    document.getElementById('sort-by-domain').addEventListener('change', function() {
+        retrieveChromeTabs((result) => { 
+            updateTabsList(formatTabInfo(result, getSortType())); 
+        });
+    });
     
     // Add Chrome tab event listeners
     chrome.tabs.onCreated.addListener(() => {
         console.log("adding tab");
-        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result)); });
+        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType())); });
 
     });
     
     chrome.tabs.onRemoved.addListener(() => {
         console.log("removing tab");
-        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result)); });
+        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType())); });
     });
 
     // Add listener for URL changes
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if (changeInfo.url) {
             console.log("tab URL changed");
-            retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result)); });
+            retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType)); });
         }
     });
 });
 
+// UI helper functions
+function getSortType() {
+    return document.getElementById('sort-by-domain').checked ? 'domain' : 'index';
+}
+
 // Format the tab information in a way that is easily read
-function formatTabInfo(tabInfo) {
+function formatTabInfo(tabInfo, sortBy = 'index') {
     console.log('tabInfo', tabInfo);
     let output = '<ul>';
     
     for (let windowId in tabInfo) {
         output += `<li class="window-container" data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
         
-        // Convert tabs object to array and sort by domain
-        //const sortedTabs = Object.entries(tabInfo[windowId])
-        //    .sort((a, b) => a[1].domain.localeCompare(b[1].domain));
-        
         const sortedTabs = Object.entries(tabInfo[windowId])
-            .sort((a, b) => a[1].index - b[1].index);
+            .sort((a, b) => {
+                if (sortBy === 'domain') {
+                    return a[1].domain.localeCompare(b[1].domain);
+                }
+                return a[1].index - b[1].index;
+            });
         
         for (let [tabId, tab] of sortedTabs) {
             const duration = formatDuration(tab.openDuration);
@@ -85,7 +100,7 @@ function registerTabCloseListeners() {
             chrome.tabs.remove(tabId, function() {
                 // Refresh the tab list after closing
                 retrieveChromeTabs((result) => { 
-                    updateTabsList(formatTabInfo(result));
+                    updateTabsList(formatTabInfo(result, getSortType()));
                 });
             });
         });
