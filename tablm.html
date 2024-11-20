@@ -17,9 +17,22 @@
       input, input[type="submit"]{
         height: 1.5rem;
       }
-
       #settings, #loading-bar, #strengths-growths{
         display: none;
+      }
+      .window-container {
+        padding: 10px;
+        margin: 10px 0;
+        border: 2px dashed #ccc;
+        border-radius: 4px;
+        list-style-type: none;
+      }
+      .window-container.drag-over {
+          background-color: #2a2828;
+          border-color: #666;
+      } 
+      .tab-list {
+        padding-left: 0px;
       }
       .tab-item {
         cursor: move;
@@ -27,6 +40,7 @@
         margin: 5px 0;
         border: 1px solid #ccc;
         border-radius: 4px;
+        list-style-type: none;
       }
       .close-tab-btn {
         padding: 0.2rem 0.5rem;
@@ -35,16 +49,6 @@
         margin: 0;
         line-height: 1;
       }
-      .window-container {
-          padding: 10px;
-          margin: 10px 0;
-          border: 2px dashed #ccc;
-          border-radius: 4px;
-      }
-      .window-container.drag-over {
-          background-color: #2a2828;
-          border-color: #666;
-      } 
       
       .inline-controls {
         display: flex;
