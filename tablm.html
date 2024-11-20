@@ -42,8 +42,27 @@
           border-radius: 4px;
       }
       .window-container.drag-over {
-          background-color: #f0f0f0;
+          background-color: #2a2828;
           border-color: #666;
+      } 
+      
+      .inline-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .inline-controls label {
+        display: flex;
+        align-items: center;
+      }
+
+      .inline-controls label span {
+        margin-left: 5px;
+      }
+
+      #tab-search {
+        width: 200px;
       }
     </style>
     <title>TabLM</title>
@@ -54,7 +73,13 @@
       GrabGPT is thinking, please wait <progress  />
      </section>
       <section id="results" class="container" style="white-space: pre-line"></section>
-      <label><input type="checkbox" id="sort-by-domain"> Sort by domain</label>
+      <div class="inline-controls">
+        <label>
+          <input type="checkbox" id="sort-by-domain">
+          <span>Sort</span>
+        </label>
+        <input type="text" id="tab-search" placeholder="Search tabs..." >
+      </div>
       <section id="tabs-list" class="container" ></section>
       <form>
           <fieldset>

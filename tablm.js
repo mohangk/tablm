@@ -1,34 +1,41 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
     retrieveChromeTabs((result) => { 
-        updateTabsList(formatTabInfo(result, getSortType())); 
+        updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
     });
     
     // Add sort checkbox listener
     document.getElementById('sort-by-domain').addEventListener('change', function() {
         retrieveChromeTabs((result) => { 
-            updateTabsList(formatTabInfo(result, getSortType())); 
+            updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
         });
     });
     
     // Add Chrome tab event listeners
     chrome.tabs.onCreated.addListener(() => {
         console.log("adding tab");
-        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType())); });
+        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
 
     });
     
     chrome.tabs.onRemoved.addListener(() => {
         console.log("removing tab");
-        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType())); });
+        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
     });
 
     // Add listener for URL changes
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if (changeInfo.url) {
             console.log("tab URL changed");
-            retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType)); });
+            retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
         }
+    });
+
+    // Add search input listener
+    document.getElementById('tab-search').addEventListener('input', function() {
+        retrieveChromeTabs((result) => { 
+            updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
+        });
     });
 });
 
@@ -37,15 +44,24 @@ function getSortType() {
     return document.getElementById('sort-by-domain').checked ? 'domain' : 'index';
 }
 
+function getSearchTerm() {
+    return document.getElementById('tab-search').value.toLowerCase();
+}
+
 // Format the tab information in a way that is easily read
-function formatTabInfo(tabInfo, sortBy = 'index') {
+function formatTabInfo(tabInfo, sortBy = 'index', searchTerm = '') {
     console.log('tabInfo', tabInfo);
     let output = '<ul>';
     
     for (let windowId in tabInfo) {
-        output += `<li class="window-container" data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
+        let windowHasTabs = false;
+        let windowOutput = `<li class="window-container" data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
         
         const sortedTabs = Object.entries(tabInfo[windowId])
+            .filter(([_, tab]) => {
+                return tab.title.toLowerCase().includes(searchTerm) || 
+                       tab.url.toLowerCase().includes(searchTerm);
+            })
             .sort((a, b) => {
                 if (sortBy === 'domain') {
                     return a[1].domain.localeCompare(b[1].domain);
@@ -54,15 +70,20 @@ function formatTabInfo(tabInfo, sortBy = 'index') {
             });
         
         for (let [tabId, tab] of sortedTabs) {
+            windowHasTabs = true;
             const duration = formatDuration(tab.openDuration);
-
-            output += `<li class="tab-item" draggable="true" data-tab-id="${tabId}" data-window-id="${windowId}">
+            
+            windowOutput += `<li class="tab-item" draggable="true" data-tab-id="${tabId}" data-window-id="${windowId}">
                 <div><a href="#" class="tab-link" data-tab-id="${tabId}">${tab.title}</a>(${tab.domain})</div>
                 <div>Open for: ${duration}</div>
                 <button class="close-tab-btn outline" data-tab-id="${tabId}">Close Tab</button>
             </li>`;
         }
-        output += '</ul></li>';
+        windowOutput += '</ul></li>';
+        
+        if (windowHasTabs) {
+            output += windowOutput;
+        }
     }
     
     output += '</ul>';
@@ -100,7 +121,7 @@ function registerTabCloseListeners() {
             chrome.tabs.remove(tabId, function() {
                 // Refresh the tab list after closing
                 retrieveChromeTabs((result) => { 
-                    updateTabsList(formatTabInfo(result, getSortType()));
+                    updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm()));
                 });
             });
         });
