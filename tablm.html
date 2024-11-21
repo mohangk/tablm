@@ -34,6 +34,9 @@
       .tab-list {
         padding-left: 0px;
       }
+      #tab-list-textarea {
+        display: none;
+      }
       .tab-item {
         cursor: move;
         padding: 10px;
@@ -52,6 +55,19 @@
       
       .inline-controls {
         display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: var(--background-color);
+        padding: 1rem;
+        z-index: 100;
+      }
+
+      .top-controls {
+        display: flex;
         align-items: center;
         gap: 1rem;
       }
@@ -68,6 +84,12 @@
       #tab-search {
         width: 200px;
       }
+
+      /* Add padding to the body to prevent content from hiding behind the fixed controls */
+      body {
+        padding-top: 4rem;
+      }
+
     </style>
     <title>TabLM</title>
   </head>
@@ -78,11 +100,18 @@
      </section>
       <section id="results" class="container" style="white-space: pre-line"></section>
       <div class="inline-controls">
-        <label>
-          <input type="checkbox" id="sort-by-domain">
-          <span>Sort</span>
-        </label>
-        <input type="text" id="tab-search" placeholder="Search tabs..." >
+        <div class="top-controls">
+          <label>
+            <input type="checkbox" id="sort-by-domain">
+            <span>Sort</span>
+          </label>
+          <label>
+          <input type="text" id="tab-search" placeholder="Search tabs..." >
+          <input type="checkbox" id="show-textarea">
+            <span>Chat with document</span>
+          </label>
+        </div>
+        <textarea id="tab-list-textarea" rows="5"></textarea> 
       </div>
       <section id="tabs-list" class="container" ></section>
       <form>

@@ -37,6 +37,20 @@ document.addEventListener('DOMContentLoaded', function() {
             updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
         });
     });
+
+    // Add textarea visibility toggle listener
+    document.getElementById('show-textarea').addEventListener('change', function() {
+        const textarea = document.getElementById('tab-list-textarea');
+        textarea.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Add textarea input listener for Enter key
+    document.getElementById('tab-list-textarea').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Prevent default newline
+            console.log('Textarea content:', this.value);
+        }
+    });
 });
 
 // UI helper functions
