@@ -3,13 +3,13 @@ const lastChatResponse = {};
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
-    retrieveChromeTabs((result) => { 
+    retrieveChromeTabs().then((result) => { 
         updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
     });
     
     // Add sort checkbox listener
     document.getElementById('sort-by-domain').addEventListener('change', function() {
-        retrieveChromeTabs((result) => { 
+        retrieveChromeTabs().then((result) => { 
             updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
         });
     });
@@ -17,26 +17,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add Chrome tab event listeners
     chrome.tabs.onCreated.addListener(() => {
         console.log("adding tab");
-        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
+        retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
 
     });
     
     chrome.tabs.onRemoved.addListener(() => {
         console.log("removing tab");
-        retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
+        retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
     });
 
     // Add listener for URL changes
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if (changeInfo.url) {
             console.log("tab URL changed");
-            retrieveChromeTabs((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
+            retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
         }
     });
 
     // Add search input listener
     document.getElementById('tab-search').addEventListener('input', function() {
-        retrieveChromeTabs((result) => { 
+        retrieveChromeTabs().then((result) => { 
             updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
         });
     });
@@ -209,7 +209,7 @@ function registerTabCloseListeners() {
             const tabId = parseInt(this.getAttribute('data-tab-id'));
             chrome.tabs.remove(tabId, function() {
                 // Refresh the tab list after closing
-                retrieveChromeTabs((result) => { 
+                retrieveChromeTabs().then((result) => { 
                     updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm()));
                 });
             });
@@ -246,32 +246,31 @@ async function getCurrentTabContent() {
     };
 }
 
-function retrieveChromeTabs(setFn) {
-    chrome.tabs.query({}, function(tabs) {
-        let tabInfo = {};
-        const currentTime = new Date().getTime();
-        
-        // Group tabs by windowId
-        tabs.forEach(tab => {
-            if (!tabInfo[tab.windowId]) {
-                tabInfo[tab.windowId] = {};
-            }
-            let domain = '';
-            try {
-                domain = new URL(tab.url).hostname;
-            } catch (error) {
-                console.warn(`Failed to parse URL for tab ${tab.id}:`, error);
-            }
-            tabInfo[tab.windowId][tab.id] = {
-                url: tab.url,
-                title: tab.title,
-                domain: domain,
-                openDuration: currentTime - tab.lastAccessed,
-                index: tab.index
-            };
-        });
-        setFn(tabInfo);
+async function retrieveChromeTabs() {
+    const tabs = await chrome.tabs.query({});
+    let tabInfo = {};
+    const currentTime = new Date().getTime();
+    
+    // Group tabs by windowId
+    tabs.forEach(tab => {
+        if (!tabInfo[tab.windowId]) {
+            tabInfo[tab.windowId] = {};
+        }
+        let domain = '';
+        try {
+            domain = new URL(tab.url).hostname;
+        } catch (error) {
+            console.warn(`Failed to parse URL for tab ${tab.id}:`, error);
+        }
+        tabInfo[tab.windowId][tab.id] = {
+            url: tab.url,
+            title: tab.title,
+            domain: domain,
+            openDuration: currentTime - tab.lastAccessed,
+            index: tab.index
+        };
     });
+    return tabInfo;
 }
 
 //Below this, code is not NOT USED - to be removed
