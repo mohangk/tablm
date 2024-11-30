@@ -11,8 +11,7 @@
         "tabs"
     ],
     "host_permissions": [
-        "https://public-api.grabgpt.managed.catwalk-k8s.stg-myteksi.com/*",
-        "https://grab360-v2.grab.com/*"
+        "<all_urls>"
     ],
     "action": {
         "default_title": "Click to open panel",

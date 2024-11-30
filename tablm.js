@@ -45,13 +45,47 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add textarea input listener for Enter key
-    document.getElementById('tab-list-textarea').addEventListener('keypress', function(e) {
+    document.getElementById('tab-list-textarea').addEventListener('keypress', async function(e) {
+        const apiKey = document.getElementById('api-key').value.trim();
         if (e.key === 'Enter') {
             e.preventDefault(); // Prevent default newline
-            console.log('Textarea content:', this.value);
+            const pageContent = await getCurrentTabContent();
+            const response = await sendPromptToClaude(this.value, pageContent, apiKey);
+            if (response.error) {
+                console.error('Claude API Error:', response.error);
+            } else {
+                console.log('Claude Response:', response.content[0].text);
+            }
         }
     });
 });
+
+
+//send prompt to Claude
+function sendPromptToClaude(prompt, context, apiKey) {
+    return fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+            "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+            model: "claude-3-haiku-20240307",
+            max_tokens: 1024,
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: prompt+"\n\n"+context },
+                    ],
+                },
+            ],
+        }),
+    })
+   .then((response) => response.json())
+}
 
 // UI helper functions
 function getSortType() {
@@ -153,6 +187,19 @@ function registerBringTabForward() {
             });
         });
     });
+}
+
+
+async function getCurrentTabContent() {
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+    if (!tabs[0]) return null;
+    
+    const results = await chrome.scripting.executeScript({
+        target: {tabId: tabs[0].id},
+        function: () => document.body.innerText
+    });
+    
+    return results[0].result;
 }
 
 function retrieveChromeTabs(setFn) {
