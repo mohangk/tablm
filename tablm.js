@@ -51,10 +51,10 @@ document.addEventListener('DOMContentLoaded', function() {
             chatBox.style.display = 'none';
         } else {
             // Get current tab ID
-            const tabs = await chrome.tabs.query({active: true, currentWindow: true});
-            if (tabs[0] && lastChatResponse[tabs[0].id]) {
+            const activeTab = await getActiveTab();
+            if (activeTab && lastChatResponse[activeTab.id]) {
                 chatBox.style.display = 'block';
-                chatBox.textContent = lastChatResponse[tabs[0].id];
+                chatBox.textContent = lastChatResponse[activeTab.id];
             }
         }
     });
@@ -230,20 +230,24 @@ function registerBringTabForward() {
     });
 }
 
-
 async function getCurrentTabContent() {
-    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
-    if (!tabs[0]) return null;
-    
+    const activeTab = await getActiveTab();
+    if (!activeTab) return null;
+
     const results = await chrome.scripting.executeScript({
-        target: {tabId: tabs[0].id},
+        target: {tabId: activeTab.id},
         function: () => document.body.innerText
     });
-    
+
     return {
-        tabId: tabs[0].id,
+        tabId: activeTab.id,
         content: results[0].result
     };
+}
+
+async function getActiveTab() {
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+    return tabs[0];
 }
 
 async function retrieveChromeTabs() {
