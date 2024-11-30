@@ -59,26 +59,49 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Add textarea input listener for Enter key
+    // Update the textarea input listener for Enter key
     document.getElementById('tab-list-textarea').addEventListener('keypress', async function(e) {
         const apiKey = document.getElementById('api-key').value.trim();
         if (e.key === 'Enter') {
             e.preventDefault(); // Prevent default newline
             const chatBox = document.getElementById('chat-response');
+            const userInput = this.value;
+            
+            // Clear the textarea
+            this.value = '';
+            
+            // Create and display the user's message
             chatBox.style.display = 'block';
-            chatBox.textContent = 'Loading...';
+            
+            // Create a new div for the user's message
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.className = 'user-message';
+            userMessageDiv.textContent = userInput;
+            chatBox.appendChild(userMessageDiv);
+            
+            // Create and append loading message
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'assistant-message';
+            loadingDiv.textContent = 'Loading...';
+            chatBox.appendChild(loadingDiv);
+            
+            // Scroll to bottom of chat
+            chatBox.scrollTop = chatBox.scrollHeight;
             
             const pageInfo = await getCurrentTabContent();
             if (pageInfo) {
-                const response = await sendPromptToClaude(this.value, pageInfo.content, apiKey);
+                const response = await sendPromptToClaude(userInput, pageInfo.content, apiKey);
                 if (response.error) {
                     console.error('Claude API Error:', response.error);
-                    lastChatResponse[pageInfo.tabId] = 'Error: ' + response.error;
+                    loadingDiv.textContent = 'Error: ' + response.error;
+                    lastChatResponse[pageInfo.tabId] = loadingDiv.textContent;
                 } else {
                     console.log('Claude Response:', response.content[0].text);
+                    loadingDiv.textContent = response.content[0].text;
                     lastChatResponse[pageInfo.tabId] = response.content[0].text;
                 }
-                chatBox.textContent = lastChatResponse[pageInfo.tabId];
+                // Scroll to bottom again after response
+                chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
     });
