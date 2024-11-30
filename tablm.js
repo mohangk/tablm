@@ -1,3 +1,6 @@
+// Stores the last chat response for each tab by tab ID
+const lastChatResponse = {};
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
     retrieveChromeTabs((result) => { 
@@ -39,9 +42,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add textarea visibility toggle listener
-    document.getElementById('show-textarea').addEventListener('change', function() {
+    document.getElementById('show-textarea').addEventListener('change', async function() {
         const textarea = document.getElementById('tab-list-textarea');
+        const chatBox = document.getElementById('chat-response');
         textarea.style.display = this.checked ? 'block' : 'none';
+        
+        if (!this.checked) {
+            chatBox.style.display = 'none';
+        } else {
+            // Get current tab ID
+            const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+            if (tabs[0] && lastChatResponse[tabs[0].id]) {
+                chatBox.style.display = 'block';
+                chatBox.textContent = lastChatResponse[tabs[0].id];
+            }
+        }
     });
 
     // Add textarea input listener for Enter key
@@ -49,15 +64,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const apiKey = document.getElementById('api-key').value.trim();
         if (e.key === 'Enter') {
             e.preventDefault(); // Prevent default newline
-            const pageContent = await getCurrentTabContent();
-            const response = await sendPromptToClaude(this.value, pageContent, apiKey);
-            if (response.error) {
-                console.error('Claude API Error:', response.error);
-            } else {
-                console.log('Claude Response:', response.content[0].text);
+            const chatBox = document.getElementById('chat-response');
+            chatBox.style.display = 'block';
+            chatBox.textContent = 'Loading...';
+            
+            const pageInfo = await getCurrentTabContent();
+            if (pageInfo) {
+                const response = await sendPromptToClaude(this.value, pageInfo.content, apiKey);
+                if (response.error) {
+                    console.error('Claude API Error:', response.error);
+                    lastChatResponse[pageInfo.tabId] = 'Error: ' + response.error;
+                } else {
+                    console.log('Claude Response:', response.content[0].text);
+                    lastChatResponse[pageInfo.tabId] = response.content[0].text;
+                }
+                chatBox.textContent = lastChatResponse[pageInfo.tabId];
             }
         }
     });
+
+    // Add event listener to store API key on blur
+    const apiKeyInput = document.getElementById('api-key');
+    apiKeyInput.addEventListener('blur', function() {
+        const apiKey = apiKeyInput.value.trim();
+        if (apiKey) {
+            sessionStorage.setItem('apiKey', apiKey);
+            console.log('API key stored in session storage');
+        }
+    });
+
+    // Retrieve and set the API key from session storage on load
+    const storedApiKey = sessionStorage.getItem('apiKey');
+    if (storedApiKey) {
+        apiKeyInput.value = storedApiKey;
+        console.log('API key retrieved from session storage');
+    }
 });
 
 
@@ -199,7 +240,10 @@ async function getCurrentTabContent() {
         function: () => document.body.innerText
     });
     
-    return results[0].result;
+    return {
+        tabId: tabs[0].id,
+        content: results[0].result
+    };
 }
 
 function retrieveChromeTabs(setFn) {
@@ -260,13 +304,6 @@ function updateNotification(text, overwrite=false) {
         document.getElementById('results').textContent = text + '\n' + document.getElementById('results').textContent;
     }
 }
-
-function saveFields(fieldProperties){
-    chrome.storage.local.set(fieldProperties, function() {
-        console.log('Settings saved');
-    });
-}
-
 
 // Functions that interact with GrabGPT API
 function populateModelList(){

@@ -90,6 +90,37 @@
         padding-top: 4rem;
       }
 
+      .chat-box {
+        display: none;
+        background-color: var(--background-color);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1rem;
+        margin-top: 0.5rem;
+        max-height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      @media (prefers-color-scheme: light) {
+        .chat-box {
+          background-color: rgba(255, 255, 255, 0.95);
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .chat-box {
+          background-color: rgba(20, 20, 20, 0.95);
+        }
+      }
+
+      /* Adjust the body padding to account for the chat box */
+      body {
+        padding-top: 6rem;
+      }
+
     </style>
     <title>TabLM</title>
   </head>
@@ -111,7 +142,8 @@
             <span>Chat with document</span>
           </label>
         </div>
-        <textarea id="tab-list-textarea" rows="5"></textarea> 
+        <textarea id="tab-list-textarea" rows="5"></textarea>
+        <div id="chat-response" class="chat-box"></div>
       </div>
       <section id="tabs-list" class="container" ></section>
       <form>
