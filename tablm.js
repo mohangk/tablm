@@ -167,7 +167,7 @@ function formatTabInfo(tabInfo, sortBy = 'index', searchTerm = '') {
     
     for (let windowId in tabInfo) {
         let windowHasTabs = false;
-        let windowOutput = `<li class="window-container" data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
+        let windowOutput = `<li data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
         
         const sortedTabs = Object.entries(tabInfo[windowId])
             .filter(([_, tab]) => {
@@ -185,7 +185,7 @@ function formatTabInfo(tabInfo, sortBy = 'index', searchTerm = '') {
             windowHasTabs = true;
             const duration = formatDuration(tab.openDuration);
             
-            windowOutput += `<li class="tab-item" draggable="true" data-tab-id="${tabId}" data-window-id="${windowId}">
+            windowOutput += `<li class="tab-item"  data-tab-id="${tabId}" data-window-id="${windowId}">
                 <div><a href="#" class="tab-link" data-tab-id="${tabId}">${tab.title}</a>(${tab.domain})</div>
                 <div>Open for: ${duration}</div>
                 <button class="close-tab-btn outline" data-tab-id="${tabId}">Close Tab</button>
@@ -301,16 +301,6 @@ async function retrieveChromeTabs() {
 }
 
 //Below this, code is not NOT USED - to be removed
-function registerDisplaySettingsListener(){
-    document.getElementById('display-settings').addEventListener('change', function() {
-        if(this.checked) {
-            document.getElementById('settings').style.display = 'block';
-        } else {
-            document.getElementById('settings').style.display = 'none';
-        }
-    });
-}
-
 function registerSubmitEventListener(){
     var keyAchievementsText = '';
     document.getElementById('submit').addEventListener('click', function(event) {

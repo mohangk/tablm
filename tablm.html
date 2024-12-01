@@ -21,28 +21,19 @@
         height: 1.5rem;
       }
 
-      /* Loading bar */
-      #loading-bar {
+      /* Hide Loading bar and results*/
+      #loading-bar, #results {
         display: none;
       }
 
-      /* Window container styling */
-      .window-container {
-        padding: 10px;
-        margin: 10px 0;
-        border: 2px dashed #ccc;
-        border-radius: 4px;
-        list-style-type: none;
-      }
-
-      .window-container.drag-over {
-        background-color: #2a2828;
-        border-color: #666;
-      }
-
       /* Tab list and items */
-      .tab-list {
+      #tabs-list, #tabs-list ul {
         padding-left: 0;
+        padding-right: 0;
+      }
+
+      #tabs-list ul li{
+        list-style: none;
       }
 
       .tab-item {
@@ -100,6 +91,7 @@
 
       #tab-search {
         width: 200px;
+        height: 2.0rem;
       }
 
       /* Chat box styling */
