@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add textarea visibility toggle listener
     document.getElementById('show-textarea').addEventListener('change', async function() {
-        const textarea = document.getElementById('tab-list-textarea');
+        const textarea = document.getElementById('chat-textarea');
         const chatBox = document.getElementById('chat-response');
         textarea.style.display = this.checked ? 'block' : 'none';
         
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Update the textarea input listener for Enter key
-    document.getElementById('tab-list-textarea').addEventListener('keypress', async function(e) {
+    document.getElementById('chat-textarea').addEventListener('keypress', async function(e) {
         const apiKey = document.getElementById('api-key').value.trim();
         if (e.key === 'Enter') {
             e.preventDefault(); // Prevent default newline
