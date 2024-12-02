@@ -122,6 +122,23 @@ document.addEventListener('DOMContentLoaded', function() {
         apiKeyInput.value = storedApiKey;
         console.log('API key retrieved from session storage');
     }
+
+    // Add event listener for tab activation
+    chrome.tabs.onActivated.addListener(async (activeInfo) => {
+        // Remove active-tab class from all tab items
+        document.querySelectorAll('.tab-item').forEach(tab => {
+            tab.classList.remove('active-tab');
+        });
+
+        // Get the newly active tab element
+        const activeTabElement = document.querySelector(`[data-tab-id="${activeInfo.tabId}"]`);
+        
+        // Add active-tab class to the newly active tab
+        if (activeTabElement) {
+            activeTabElement.classList.add('active-tab');
+            scrollToActiveTab();
+        }
+    });
 });
 
 
@@ -184,8 +201,9 @@ function formatTabInfo(tabInfo, sortBy = 'index', searchTerm = '') {
         for (let [tabId, tab] of sortedTabs) {
             windowHasTabs = true;
             const duration = formatDuration(tab.openDuration);
+            const activeClass = tab.active ? 'active-tab' : '';
             
-            windowOutput += `<li class="tab-item"  data-tab-id="${tabId}" data-window-id="${windowId}">
+            windowOutput += `<li class="tab-item ${activeClass}" data-tab-id="${tabId}" data-window-id="${windowId}">
                 <div><a href="#" class="tab-link" data-tab-id="${tabId}">${tab.title}</a>(${tab.domain})</div>
                 <div>Open for: ${duration}</div>
                 <button class="close-tab-btn outline" data-tab-id="${tabId}">Close Tab</button>
@@ -218,11 +236,12 @@ function formatDuration(ms) {
 }
 
 
-//Functions to update or retrieve from the the Extension UI
+//Function to update the tabs list
 function updateTabsList(tabListHTML) {
     document.getElementById('tabs-list').innerHTML = tabListHTML;
     registerTabCloseListeners();
     registerBringTabForward();
+    scrollToActiveTab();
 }
 
 // Add this new function to handle tab closure
@@ -273,6 +292,22 @@ async function getActiveTab() {
     return tabs[0];
 }
 
+//Scroll to the tab-item with the class active-tab
+function scrollToActiveTab() {
+    const activeTab = document.querySelector(`.tab-item.active-tab`); // querySelector returns a single element (or null if not found)
+    if (activeTab) {
+        setTimeout(() => {
+            const headerHeight = document.querySelector('.inline-controls').offsetHeight;
+            const tabPosition = activeTab.getBoundingClientRect().top + window.scrollY;
+            window.scrollTo({
+                top: tabPosition - headerHeight - 20, // 20px additional padding
+                behavior: 'smooth'
+            });
+            console.log("scrolling to active tab", activeTab);
+        }, 100);
+    }
+}
+
 async function retrieveChromeTabs() {
     const tabs = await chrome.tabs.query({});
     let tabInfo = {};
@@ -294,12 +329,12 @@ async function retrieveChromeTabs() {
             title: tab.title,
             domain: domain,
             openDuration: currentTime - tab.lastAccessed,
-            index: tab.index
+            index: tab.index,
+            active: tab.active
         };
     });
     return tabInfo;
 }
-
 //Below this, code is not NOT USED - to be removed
 function registerSubmitEventListener(){
     var keyAchievementsText = '';
@@ -338,7 +373,6 @@ function populateModelList(){
             updateNotification('Are you connected to the VPN?', true);
         });
 }
-
 
 function fetchAPI(userPrompt, systemPrompt, successFn) {
     const apiKey = document.getElementById('api-key').value.trim();
@@ -395,3 +429,5 @@ function fetchAPI(userPrompt, systemPrompt, successFn) {
         loadingBar.style.display = 'none';
     });
 };
+
+
