@@ -112,7 +112,6 @@
       }
 
       .user-message {
-        background-color: #e6e6e6;
         padding: 8px;
         margin: 5px 0;
         border-radius: 8px;
@@ -121,7 +120,6 @@
       }
 
       .assistant-message {
-        background-color: #f0f7ff;
         padding: 8px;
         margin: 5px 0;
         border-radius: 8px;
@@ -140,11 +138,27 @@
         .chat-box {
           background-color: rgba(255, 255, 255, 0.95);
         }
+        .user-message {
+          background-color: #2f2f2f;
+          color: #ffffff;
+        }
+        .assistant-message {
+          background-color: #007bff;
+          color: #ffffff;
+        }
       }
 
       @media (prefers-color-scheme: dark) {
         .chat-box {
           background-color: rgba(20, 20, 20, 0.95);
+        }
+        .user-message {
+          background-color: #404040;
+          color: #ffffff;
+        }
+        .assistant-message {
+          background-color: #0056b3;
+          color: #ffffff;
         }
       }
 
