@@ -198,15 +198,18 @@ function getSearchTerm() {
 }
 
 // Format the tab information in a way that is easily read
-function formatTabInfo(tabInfo, sortBy = 'index', searchTerm = '') {
-    console.log('tabInfo', tabInfo);
+function formatTabInfo(tabData, sortBy = 'index', searchTerm = '') {
+    console.log('tabData', tabData);
     let output = '<ul>';
     
-    for (let windowId in tabInfo) {
+    const { windows, activeWindowId } = tabData; // Destructure the response
+    
+    for (let windowId in windows) {
         let windowHasTabs = false;
-        let windowOutput = `<li data-window-id="${windowId}">Window ${windowId}:<ul class="tab-list">`;
+        const activeWindowClass = (windowId == activeWindowId) ? 'active-window' : '';
+        let windowOutput = `<li data-window-id="${windowId}" class="${activeWindowClass}">Window ${windowId}:<ul class="tab-list">`;
         
-        const sortedTabs = Object.entries(tabInfo[windowId])
+        const sortedTabs = Object.entries(windows[windowId])
             .filter(([_, tab]) => {
                 return tab.title.toLowerCase().includes(searchTerm) || 
                        tab.url.toLowerCase().includes(searchTerm);
@@ -261,6 +264,7 @@ function updateTabsList(tabListHTML) {
     document.getElementById('tabs-list').innerHTML = tabListHTML;
     registerTabCloseListeners();
     registerBringTabForward();
+    console.log("LOCATION 2");
     scrollToActiveTab();
 }
 
@@ -312,9 +316,10 @@ async function getActiveTab() {
     return tabs[0];
 }
 
-//Scroll to the tab-item with the class active-tab
+//Scroll to the tab-item with the class active-tab for the current window
 function scrollToActiveTab() {
-    const activeTab = document.querySelector(`.tab-item.active-tab`); // querySelector returns a single element (or null if not found)
+    // First find the active window, then find the active tab within it
+    const activeTab = document.querySelector('.active-window .tab-item.active-tab');
     if (activeTab) {
         setTimeout(() => {
             const headerHeight = document.querySelector('.inline-controls').offsetHeight;
@@ -329,14 +334,19 @@ function scrollToActiveTab() {
 }
 
 async function retrieveChromeTabs() {
-    const tabs = await chrome.tabs.query({});
-    let tabInfo = {};
+    // Get all tabs and the current window in parallel
+    const [tabs, currentWindow] = await Promise.all([
+        chrome.tabs.query({}),
+        chrome.windows.getCurrent()
+    ]);
+    
+    let windows = {};
     const currentTime = new Date().getTime();
     
     // Group tabs by windowId
     tabs.forEach(tab => {
-        if (!tabInfo[tab.windowId]) {
-            tabInfo[tab.windowId] = {};
+        if (!windows[tab.windowId]) {
+            windows[tab.windowId] = {};
         }
         let domain = '';
         try {
@@ -344,7 +354,7 @@ async function retrieveChromeTabs() {
         } catch (error) {
             console.warn(`Failed to parse URL for tab ${tab.id}:`, error);
         }
-        tabInfo[tab.windowId][tab.id] = {
+        windows[tab.windowId][tab.id] = {
             url: tab.url,
             title: tab.title,
             domain: domain,
@@ -353,7 +363,11 @@ async function retrieveChromeTabs() {
             active: tab.active
         };
     });
-    return tabInfo;
+
+    return {
+        windows: windows,
+        activeWindowId: currentWindow.id
+    };
 }
 //Below this, code is not NOT USED - to be removed
 function registerSubmitEventListener(){
