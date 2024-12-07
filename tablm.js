@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
     });
     
+
     // Add sort checkbox listener
     document.getElementById('sort-by-domain').addEventListener('change', function() {
         retrieveChromeTabs().then((result) => { 
@@ -14,7 +15,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Add Chrome tab event listeners
+    // START :Chrome tab event listeners
+    chrome.tabs.onActivated.addListener(async (activeInfo) => {
+        console.log("tab activated", activeInfo);
+        // Remove active classes from all elements
+        document.querySelectorAll('.tab-item').forEach(tab => {
+            tab.classList.remove('active-tab');
+        });
+        document.querySelectorAll('[data-window-id]').forEach(window => {
+            window.classList.remove('active-window');
+        });
+
+        // Get the newly active tab element
+        const activeTabElement = document.querySelector(`[data-tab-id="${activeInfo.tabId}"]`);
+        const windowElement = document.querySelector(`li[data-window-id="${activeInfo.windowId}"]`);
+        
+        if (activeTabElement) {
+            activeTabElement.classList.add('active-tab');
+        }
+        if (windowElement) {
+            windowElement.classList.add('active-window');
+        }
+        
+        console.log("LOCATION 1");
+        scrollToActiveTab();
+    });
+
     chrome.tabs.onCreated.addListener(() => {
         console.log("adding tab");
         retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
@@ -123,22 +149,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('API key retrieved from session storage');
     }
 
-    // Add event listener for tab activation
-    chrome.tabs.onActivated.addListener(async (activeInfo) => {
-        // Remove active-tab class from all tab items
-        document.querySelectorAll('.tab-item').forEach(tab => {
-            tab.classList.remove('active-tab');
-        });
-
-        // Get the newly active tab element
-        const activeTabElement = document.querySelector(`[data-tab-id="${activeInfo.tabId}"]`);
-        
-        // Add active-tab class to the newly active tab
-        if (activeTabElement) {
-            activeTabElement.classList.add('active-tab');
-            scrollToActiveTab();
-        }
-    });
 });
 
 
