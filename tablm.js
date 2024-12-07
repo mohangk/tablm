@@ -3,10 +3,20 @@ const lastChatResponse = {};
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
+
+    // Retrieve and display the tabs upon loading
     retrieveChromeTabs().then((result) => { 
         updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
     });
-    
+
+
+    //trigger similar behaviour to onactivated listener when the window is brought to the foreground
+    chrome.windows.onFocusChanged.addListener((windowId) => {
+        console.log("window brought to foreground", windowId);
+        retrieveChromeTabs().then((result) => { 
+            updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
+        });
+    });
 
     // Add sort checkbox listener
     document.getElementById('sort-by-domain').addEventListener('change', function() {
@@ -44,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.onCreated.addListener(() => {
         console.log("adding tab");
         retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
-
     });
     
     chrome.tabs.onRemoved.addListener(() => {
@@ -52,13 +61,14 @@ document.addEventListener('DOMContentLoaded', function() {
         retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
     });
 
-    // Add listener for URL changes
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        console.log("tab updated", tabId, changeInfo, tab);
         if (changeInfo.url) {
             console.log("tab URL changed");
             retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
         }
     });
+    // END : chrome tab event listeners
 
     // Add search input listener
     document.getElementById('tab-search').addEventListener('input', function() {
