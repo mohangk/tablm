@@ -77,23 +77,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Add textarea visibility toggle listener
-    document.getElementById('show-textarea').addEventListener('change', async function() {
-        const textarea = document.getElementById('chat-textarea');
-        const chatBox = document.getElementById('chat-response');
-        textarea.style.display = this.checked ? 'block' : 'none';
-        
-        if (!this.checked) {
-            chatBox.style.display = 'none';
-        } else {
-            // Get current tab ID
-            const activeTab = await getActiveTab();
-            if (activeTab && lastChatResponse[activeTab.id]) {
-                chatBox.style.display = 'block';
-                chatBox.textContent = lastChatResponse[activeTab.id];
-            }
-        }
-    });
 
     // Update the textarea input listener for Enter key
     document.getElementById('chat-textarea').addEventListener('keypress', async function(e) {
@@ -158,6 +141,34 @@ document.addEventListener('DOMContentLoaded', function() {
         apiKeyInput.value = storedApiKey;
         console.log('API key retrieved from session storage');
     }
+
+    document.getElementById('nav-chat').addEventListener('click', async function(e) {
+        e.preventDefault();
+        this.classList.add('active-tab');
+        document.getElementById('nav-tabs').classList.remove('active-tab');
+
+        // Hide tabs list and show chat elements
+        document.getElementById('tabs-list').style.display = 'none';
+        document.getElementById('chat').style.display = 'block';
+        
+        // Get current tab ID and show previous chat if it exists
+        const activeTab = await getActiveTab();
+        const chatBox = document.getElementById('chat-response');
+        if (activeTab && lastChatResponse[activeTab.id]) {
+            chatBox.style.display = 'block';
+            chatBox.textContent = lastChatResponse[activeTab.id];
+        }
+    });
+
+    document.getElementById('nav-tabs').addEventListener('click', function(e) {
+        e.preventDefault();
+        this.classList.add('active-tab');
+        document.getElementById('nav-chat').classList.remove('active-tab');
+
+        // Show tabs list and hide chat elements
+        document.getElementById('tabs-list').style.display = 'block';
+        document.getElementById('chat').style.display = 'none';
+    });
 
 });
 
