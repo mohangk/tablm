@@ -47,6 +47,14 @@ document.addEventListener('DOMContentLoaded', function() {
             windowElement.classList.add('active-window');
         }
         
+        // Load the last chat response for this tab if we're in chat view
+        const chatBox = document.getElementById('chat-response');
+        const chatView = document.getElementById('chat');
+        if (chatView.style.display === 'block' && lastChatResponse[activeInfo.tabId]) {
+            chatBox.style.display = 'block';
+            chatBox.innerHTML = lastChatResponse[activeInfo.tabId];
+        }
+        
         console.log("LOCATION 1");
         scrollToActiveTab();
     });
@@ -113,11 +121,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.error) {
                     console.error('Claude API Error:', response.error);
                     loadingDiv.textContent = 'Error: ' + response.error;
-                    lastChatResponse[pageInfo.tabId] = loadingDiv.textContent;
                 } else {
                     console.log('Claude Response:', response.content[0].text);
                     loadingDiv.textContent = response.content[0].text;
-                    lastChatResponse[pageInfo.tabId] = response.content[0].text;
+                    // Store the entire chat HTML content
+                    lastChatResponse[pageInfo.tabId] = chatBox.innerHTML;
                 }
                 // Scroll to bottom again after response
                 chatBox.scrollTop = chatBox.scrollHeight;
@@ -156,10 +164,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const chatBox = document.getElementById('chat-response');
         if (activeTab && lastChatResponse[activeTab.id]) {
             chatBox.style.display = 'block';
-            chatBox.textContent = lastChatResponse[activeTab.id];
+            chatBox.innerHTML = lastChatResponse[activeTab.id];
+        } else {
+            chatBox.style.display = 'none';
+            chatBox.innerHTML = '';
         }
     });
-
     document.getElementById('nav-tabs').addEventListener('click', function(e) {
         e.preventDefault();
         this.classList.add('active-tab');
