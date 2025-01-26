@@ -5,24 +5,17 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
 
     // Retrieve and display the tabs upon loading
-    retrieveChromeTabs().then((result) => { 
-        updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
-    });
-
+    updateTabsList(false);
 
     //trigger similar behaviour to onactivated listener when the window is brought to the foreground
     chrome.windows.onFocusChanged.addListener((windowId) => {
         console.log("window brought to foreground", windowId);
-        retrieveChromeTabs().then((result) => { 
-            updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
-        });
+        updateTabsList(false);
     });
 
     // Add sort checkbox listener
     document.getElementById('sort-by-domain').addEventListener('change', function() {
-        retrieveChromeTabs().then((result) => { 
-            updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
-        });
+        updateTabsList(false);
     });
     
     // START :Chrome tab event listeners
@@ -61,28 +54,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     chrome.tabs.onCreated.addListener(() => {
         console.log("adding tab");
-        retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
+        updateTabsList(false);
     });
     
     chrome.tabs.onRemoved.addListener(() => {
         console.log("removing tab");
-        retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
+        updateTabsList(false);
     });
 
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         console.log("tab updated", tabId, changeInfo, tab);
         if (changeInfo.url) {
             console.log("tab URL changed");
-            retrieveChromeTabs().then((result) => { updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); });
+            updateTabsList(false);
         }
     });
     // END : chrome tab event listeners
 
     // Add search input listener
     document.getElementById('tab-search').addEventListener('input', function() {
-        retrieveChromeTabs().then((result) => { 
-            updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm())); 
-        });
+        updateTabsList(false);
     });
 
 
@@ -154,9 +145,11 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         this.classList.add('active-tab');
         document.getElementById('nav-tabs').classList.remove('active-tab');
+        document.getElementById('nav-organised-tabs').classList.remove('active-tab');
 
         // Hide tabs list and show chat elements
         document.getElementById('tabs-list').style.display = 'none';
+        document.getElementById('organised-tabs').style.display = 'none';
         document.getElementById('chat').style.display = 'block';
         
         // Get current tab ID and show previous chat if it exists
@@ -170,14 +163,35 @@ document.addEventListener('DOMContentLoaded', function() {
             chatBox.innerHTML = '';
         }
     });
+
     document.getElementById('nav-tabs').addEventListener('click', function(e) {
         e.preventDefault();
         this.classList.add('active-tab');
         document.getElementById('nav-chat').classList.remove('active-tab');
+        document.getElementById('nav-organised-tabs').classList.remove('active-tab');
 
-        // Show tabs list and hide chat elements
+        // Show tabs list and hide other sections
         document.getElementById('tabs-list').style.display = 'block';
+        document.getElementById('organised-tabs').style.display = 'none';
         document.getElementById('chat').style.display = 'none';
+    });
+
+    document.getElementById('nav-organised-tabs').addEventListener('click', async function(e) {
+        e.preventDefault();
+        this.classList.add('active-tab');
+        document.getElementById('nav-tabs').classList.remove('active-tab');
+        document.getElementById('nav-chat').classList.remove('active-tab');
+
+        // Show organised tabs and hide other sections
+        document.getElementById('tabs-list').style.display = 'none';
+        document.getElementById('organised-tabs').style.display = 'block';
+        document.getElementById('chat').style.display = 'none';
+
+        // Show loading state
+        document.getElementById('organised-tabs').innerHTML = '<div class="loading">Organizing tabs...</div>';
+
+        // Update with organized view
+        await updateTabsList(true);
     });
 
 });
@@ -185,6 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 //send prompt to Claude
 function sendPromptToClaude(prompt, context, apiKey) {
+    console.log("sending prompt to claude", prompt, context, apiKey);
     return fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -194,8 +209,8 @@ function sendPromptToClaude(prompt, context, apiKey) {
             "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-            model: "claude-3-haiku-20240307",
-            max_tokens: 1024,
+            model: "claude-3-5-haiku-latest",
+            max_tokens: 8192,
             messages: [
                 {
                     role: "user",
@@ -281,8 +296,16 @@ function formatDuration(ms) {
 
 
 //Function to update the tabs list
-function updateTabsList(tabListHTML) {
-    document.getElementById('tabs-list').innerHTML = tabListHTML;
+async function updateTabsList(isOrganizedView = false) {
+    const tabs = await retrieveChromeTabs();
+    
+    if (isOrganizedView) {
+        const organizedTabs = await getOrganizedTabsFromClaude(tabs);
+        document.getElementById('organised-tabs').innerHTML = formatOrganizedTabInfo(organizedTabs);
+    } else {
+        document.getElementById('tabs-list').innerHTML = formatTabInfo(tabs, getSortType(), getSearchTerm());
+    }
+    
     registerTabCloseListeners();
     registerBringTabForward();
     console.log("LOCATION 2");
@@ -292,14 +315,13 @@ function updateTabsList(tabListHTML) {
 // Add this new function to handle tab closure
 function registerTabCloseListeners() {
     document.querySelectorAll('.close-tab-btn').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', async function() {
             const tabId = parseInt(this.getAttribute('data-tab-id'));
-            chrome.tabs.remove(tabId, function() {
-                // Refresh the tab list after closing
-                retrieveChromeTabs().then((result) => { 
-                    updateTabsList(formatTabInfo(result, getSortType(), getSearchTerm()));
-                });
-            });
+            await chrome.tabs.remove(tabId);
+            
+            // Check if we're in organized view or regular view
+            const isOrganizedView = document.getElementById('organised-tabs').style.display === 'block';
+            await updateTabsList(isOrganizedView);
         });
     });
 }
@@ -484,5 +506,96 @@ function fetchAPI(userPrompt, systemPrompt, successFn) {
         loadingBar.style.display = 'none';
     });
 };
+
+// Add new functions for organised tabs view
+function formatOrganizedTabInfo(categorizedTabs) {
+    if (!categorizedTabs) {
+        return '<div class="error">Failed to organize tabs. Please try again.</div>';
+    }
+
+    let output = '<ul>';
+    
+    // Sort categories alphabetically
+    const sortedCategories = Object.keys(categorizedTabs).sort();
+    
+    for (const category of sortedCategories) {
+        const tabs = categorizedTabs[category];
+        if (tabs.length > 0) {
+            output += `<li>${category} (${tabs.length}):<ul>`;
+            
+            tabs.forEach(tab => {
+                const activeClass = tab.active ? 'active-tab' : '';
+                const duration = formatDuration(tab.openDuration);
+                
+                output += `<li class="tab-item ${activeClass}" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">
+                    <div><a href="#" class="tab-link" data-tab-id="${tab.id}">${tab.title}</a>(${tab.domain})</div>
+                    <div>Open for: ${duration}</div>
+                    <button class="close-tab-btn outline" data-tab-id="${tab.id}">Close Tab</button>
+                </li>`;
+            });
+            
+            output += '</ul></li>';
+        }
+    }
+    
+    output += '</ul>';
+    return output;
+}
+
+// Add new function to get organized tabs from Claude
+async function getOrganizedTabsFromClaude(tabData) {
+    const apiKey = document.getElementById('api-key').value.trim();
+    if (!apiKey) {
+        alert('Please enter your Claude API key first');
+        return null;
+    }
+
+    // First, flatten the tabs into a single array with their IDs
+    let allTabs = [];
+    for (let windowId in tabData.windows) {
+        for (let tabId in tabData.windows[windowId]) {
+            allTabs.push({
+                ...tabData.windows[windowId][tabId],
+                id: parseInt(tabId),
+                windowId: parseInt(windowId)
+            });
+        }
+    }
+
+    const prompt = `<task>Organize browser tabs into logical categories based on their content and purpose.</task>
+
+<output_format>
+The response should be a valid JSON object with:
+- keys: category names (e.g. "Work", "Social Media", "Shopping", "News", "Documentation")
+- values: arrays of tab objects
+- each tab object must preserve ALL original properties exactly as provided
+Example structure:
+{
+    "Category1": [tab1, tab2],
+    "Category2": [tab3, tab4]
+}
+</output_format>
+
+<input_data>
+${JSON.stringify(allTabs, null, 2)}
+</input_data>
+
+Return ONLY the JSON object, with no additional text or explanation.`.trim();
+
+    try {
+        const response = await sendPromptToClaude(prompt, '', apiKey);
+        if (response.error) {
+            console.error('Claude API Error:', response.error);
+            return null;
+        }
+        console.log("Claude response", response.content[0].text);
+        // Parse the JSON response from Claude
+        const categorizedTabs = JSON.parse(response.content[0].text);
+        return categorizedTabs;
+    } catch (error) {
+        console.error('Error organizing tabs:', error);
+        return null;
+    }
+}
 
 

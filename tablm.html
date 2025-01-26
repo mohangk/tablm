@@ -27,13 +27,12 @@
       }
 
       /* Tab list and items */
-
-      #tabs-list, #tabs-list ul {
+      #tabs-list ul, #organised-tabs ul {
         padding-left: 0;
         padding-right: 0;
       }
 
-      #tabs-list ul li{
+      #tabs-list ul li, #organised-tabs ul li {
         list-style: none;
       }
 
@@ -52,6 +51,12 @@
         height: auto;
         margin: 0;
         line-height: 1;
+      }
+
+      /* Active tab styling */
+      .active-tab {
+        border: 2px solid #39ff14 !important;
+        box-shadow: 0 0 10px #39ff14;
       }
 
       /* Inline controls */
@@ -161,12 +166,6 @@
         }
       }
 
-      .active-tab {
-        border: 2px solid #39ff14 !important;
-        box-shadow: 0 0 10px #39ff14;
-      }
-
-
     </style>
     <title>TabLM</title>
   </head>
@@ -190,10 +189,12 @@
       <nav>
         <ul>
           <li><a href="#" id="nav-tabs" class="active-tab">Tabs</a></li>
+          <li><a href="#" id="nav-organised-tabs">Organised tabs</a></li>
           <li><a href="#" id="nav-chat">Chat</a></li>
         </ul>
       </nav>
       <section id="tabs-list" class="container" ></section>
+      <section id="organised-tabs" class="container" style="display: none;"></section>
       <section id="chat" class="container">
         <div id="chat-response" class="chat-box"></div>
         <textarea id="chat-textarea" rows="3"></textarea>
