@@ -17,6 +17,21 @@ A simple Chrome extension to help bring more "smarts" to managing your tabs
 
 ### Recent Changes
 
+#### Added Tab Organization Caching System (2024-03-21)
+- Implemented smart caching system for organized tabs to reduce Claude API calls
+- Added `haveTabsChanged()` function to detect meaningful tab updates
+- Enhanced tab removal handling without requiring re-categorization
+- Improved performance through `getOrganizedTabsFromClaude()` caching logic
+- Added efficient filtering system to maintain category consistency
+
+The caching system uses a two-part structure:
+```javascript
+let tabsCache = {
+    tabs: null,      // Original tab data for comparison
+    categories: null  // Categorized tabs from Claude
+};
+```
+
 #### Added Organized Tabs View
 - Added new "Organised tabs" navigation option
 - Implemented tab categorization using Claude AI

@@ -1,6 +1,12 @@
 // Stores the last chat response for each tab by tab ID
 const lastChatResponse = {};
 
+// Cache for organized tabs
+let tabsCache = {
+    tabs: null,  // The original tab data used for categorization
+    categories: null  // The categorized tabs from Claude
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log("tablm is running");
 
@@ -542,8 +548,85 @@ function formatOrganizedTabInfo(categorizedTabs) {
     return output;
 }
 
+// Helper function to check if tabs have changed and update cache for removals
+function haveTabsChanged(newTabs) {
+    if (!tabsCache.tabs) return true;
+    
+    let hasChanges = false;
+    const updatedCategories = {};
+    
+    // First check if any new windows were added
+    if (Object.keys(newTabs.windows).length > Object.keys(tabsCache.tabs.windows).length) {
+        return true;
+    }
+    
+    // Go through each window in the new tabs
+    for (const windowId in newTabs.windows) {
+        const newWindow = newTabs.windows[windowId];
+        const cachedWindow = tabsCache.tabs.windows[windowId];
+        
+        // If there's a new window, that's a change
+        if (!cachedWindow) return true;
+        
+        // If new tabs were added to this window, that's a change
+        if (Object.keys(newWindow).length > Object.keys(cachedWindow).length) {
+            return true;
+        }
+        
+        // Check each tab in the new window
+        for (const tabId in newWindow) {
+            const newTab = newWindow[tabId];
+            const cachedTab = cachedWindow[tabId];
+            
+            // If there's a new tab or a tab was modified, that's a change
+            if (!cachedTab || 
+                newTab.url !== cachedTab.url || 
+                newTab.title !== cachedTab.title) {
+                return true;
+            }
+        }
+    }
+    
+    // If we get here, only removals happened (or no changes)
+    // Update the categories by removing deleted tabs
+    for (const category in tabsCache.categories) {
+        const remainingTabs = tabsCache.categories[category].filter(tab => {
+            const windowTabs = newTabs.windows[tab.windowId];
+            return windowTabs && windowTabs[tab.id];
+        });
+        
+        if (remainingTabs.length > 0) {
+            updatedCategories[category] = remainingTabs;
+            if (remainingTabs.length !== tabsCache.categories[category].length) {
+                hasChanges = true;
+            }
+        } else {
+            hasChanges = true;
+        }
+    }
+    
+    // Update cache if we only had removals
+    if (hasChanges) {
+        tabsCache.tabs = JSON.parse(JSON.stringify(newTabs));
+        tabsCache.categories = updatedCategories;
+    }
+    
+    return false;
+}
+
 // Add new function to get organized tabs from Claude
 async function getOrganizedTabsFromClaude(tabData) {
+    // Check if anything changed (and handle removals if that's all that changed)
+    if (haveTabsChanged(tabData)) {
+        return await queryClaudeForTabs(tabData);
+    }
+
+    console.log("Using cached organized tabs");
+    return tabsCache.categories;
+}
+
+// Helper function to query Claude for new organization
+async function queryClaudeForTabs(tabData) {
     const apiKey = document.getElementById('api-key').value.trim();
     if (!apiKey) {
         alert('Please enter your Claude API key first');
@@ -591,6 +674,11 @@ Return ONLY the JSON object, with no additional text or explanation.`.trim();
         console.log("Claude response", response.content[0].text);
         // Parse the JSON response from Claude
         const categorizedTabs = JSON.parse(response.content[0].text);
+        
+        // Update cache
+        tabsCache.tabs = JSON.parse(JSON.stringify(tabData)); // Deep copy
+        tabsCache.categories = categorizedTabs;
+        
         return categorizedTabs;
     } catch (error) {
         console.error('Error organizing tabs:', error);
