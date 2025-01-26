@@ -1,3 +1,6 @@
+// Import tab list formatting functions
+import { formatTabInfo, formatOrganizedTabInfo } from './tabList.js';
+
 // Stores the last chat response for each tab by tab ID
 const lastChatResponse = {};
 
@@ -54,7 +57,6 @@ document.addEventListener('DOMContentLoaded', function() {
             chatBox.innerHTML = lastChatResponse[activeInfo.tabId];
         }
         
-        console.log("LOCATION 1");
         scrollToActiveTab();
     });
 
@@ -90,10 +92,10 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault(); // Prevent default newline
             const chatBox = document.getElementById('chat-response');
             const userInput = this.value;
-            
+    
             // Clear the textarea
             this.value = '';
-            
+        
             // Create and display the user's message
             chatBox.style.display = 'block';
             
@@ -128,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
-    });
+});
 
     // Add event listener to store API key on blur
     const apiKeyInput = document.getElementById('api-key');
@@ -137,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (apiKey) {
             sessionStorage.setItem('apiKey', apiKey);
             console.log('API key stored in session storage');
-        }
+}
     });
 
     // Retrieve and set the API key from session storage on load
@@ -145,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (storedApiKey) {
         apiKeyInput.value = storedApiKey;
         console.log('API key retrieved from session storage');
-    }
+}
 
     document.getElementById('nav-chat').addEventListener('click', async function(e) {
         e.preventDefault();
@@ -157,19 +159,19 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('tabs-list').style.display = 'none';
         document.getElementById('organised-tabs').style.display = 'none';
         document.getElementById('chat').style.display = 'block';
-        
+    
         // Get current tab ID and show previous chat if it exists
         const activeTab = await getActiveTab();
         const chatBox = document.getElementById('chat-response');
         if (activeTab && lastChatResponse[activeTab.id]) {
             chatBox.style.display = 'block';
             chatBox.innerHTML = lastChatResponse[activeTab.id];
-        } else {
+    } else {
             chatBox.style.display = 'none';
             chatBox.innerHTML = '';
-        }
+    }
     });
-
+    
     document.getElementById('nav-tabs').addEventListener('click', function(e) {
         e.preventDefault();
         this.classList.add('active-tab');
@@ -187,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this.classList.add('active-tab');
         document.getElementById('nav-tabs').classList.remove('active-tab');
         document.getElementById('nav-chat').classList.remove('active-tab');
-
+    
         // Show organised tabs and hide other sections
         document.getElementById('tabs-list').style.display = 'none';
         document.getElementById('organised-tabs').style.display = 'block';
@@ -198,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update with organized view
         await updateTabsList(true);
-    });
+            });
 
 });
 
@@ -239,69 +241,7 @@ function getSearchTerm() {
     return document.getElementById('tab-search').value.toLowerCase();
 }
 
-// Format the tab information in a way that is easily read
-function formatTabInfo(tabData, sortBy = 'index', searchTerm = '') {
-    console.log('tabData', tabData);
-    let output = '<ul>';
-    
-    const { windows, activeWindowId } = tabData; // Destructure the response
-    
-    for (let windowId in windows) {
-        let windowHasTabs = false;
-        const activeWindowClass = (windowId == activeWindowId) ? 'active-window' : '';
-        let windowOutput = `<li data-window-id="${windowId}" class="${activeWindowClass}">Window ${windowId}:<ul class="tab-list">`;
-        
-        const sortedTabs = Object.entries(windows[windowId])
-            .filter(([_, tab]) => {
-                return tab.title.toLowerCase().includes(searchTerm) || 
-                       tab.url.toLowerCase().includes(searchTerm);
-            })
-            .sort((a, b) => {
-                if (sortBy === 'domain') {
-                    return a[1].domain.localeCompare(b[1].domain);
-                }
-                return a[1].index - b[1].index;
-            });
-        
-        for (let [tabId, tab] of sortedTabs) {
-            windowHasTabs = true;
-            const duration = formatDuration(tab.openDuration);
-            const activeClass = tab.active ? 'active-tab' : '';
-            
-            windowOutput += `<li class="tab-item ${activeClass}" data-tab-id="${tabId}" data-window-id="${windowId}">
-                <div><a href="#" class="tab-link" data-tab-id="${tabId}">${tab.title}</a>(${tab.domain})</div>
-                <div>Open for: ${duration}</div>
-                <button class="close-tab-btn outline" data-tab-id="${tabId}">Close Tab</button>
-            </li>`;
-        }
-        windowOutput += '</ul></li>';
-        
-        if (windowHasTabs) {
-            output += windowOutput;
-        }
-    }
-    
-    output += '</ul>';
-    return output;
-}
-
-// Helper function to format duration
-function formatDuration(ms) {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    
-    if (hours > 0) {
-        return `${hours}h ${minutes % 60}m`;
-    } else if (minutes > 0) {
-        return `${minutes}m ${seconds % 60}s`;
-    } else {
-        return `${seconds}s`;
-    }
-}
-
-
-//Function to update the tabs list
+// Function to update the tabs list
 async function updateTabsList(isOrganizedView = false) {
     const tabs = await retrieveChromeTabs();
     
@@ -312,14 +252,13 @@ async function updateTabsList(isOrganizedView = false) {
         document.getElementById('tabs-list').innerHTML = formatTabInfo(tabs, getSortType(), getSearchTerm());
     }
     
-    registerTabCloseListeners();
-    registerBringTabForward();
-    console.log("LOCATION 2");
+    registerTabEventHandlers();
     scrollToActiveTab();
 }
 
-// Add this new function to handle tab closure
-function registerTabCloseListeners() {
+// Register event handlers for tab interactions
+function registerTabEventHandlers() {
+    // Close button handlers
     document.querySelectorAll('.close-tab-btn').forEach(button => {
         button.addEventListener('click', async function() {
             const tabId = parseInt(this.getAttribute('data-tab-id'));
@@ -330,14 +269,12 @@ function registerTabCloseListeners() {
             await updateTabsList(isOrganizedView);
         });
     });
-}
 
-function registerBringTabForward() {
+    // Tab link handlers
     document.querySelectorAll('.tab-link').forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             const tabId = parseInt(this.getAttribute('data-tab-id'));
-            console.log("tabId", tabId, "clicked");
             chrome.tabs.update(tabId, { active: true }, function(tab) {
                 chrome.windows.update(tab.windowId, { focused: true });
             });
@@ -345,39 +282,17 @@ function registerBringTabForward() {
     });
 }
 
-async function getCurrentTabContent() {
-    const activeTab = await getActiveTab();
-    if (!activeTab) return null;
-
-    const results = await chrome.scripting.executeScript({
-        target: {tabId: activeTab.id},
-        function: () => document.body.innerText
-    });
-
-    return {
-        tabId: activeTab.id,
-        content: results[0].result
-    };
-}
-
-async function getActiveTab() {
-    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
-    return tabs[0];
-}
-
-//Scroll to the tab-item with the class active-tab for the current window
+// Scroll to active tab
 function scrollToActiveTab() {
-    // First find the active window, then find the active tab within it
     const activeTab = document.querySelector('.active-window .tab-item.active-tab');
     if (activeTab) {
         setTimeout(() => {
             const headerHeight = document.querySelector('.inline-controls').offsetHeight;
             const tabPosition = activeTab.getBoundingClientRect().top + window.scrollY;
             window.scrollTo({
-                top: tabPosition - headerHeight - 20, // 20px additional padding
+                top: tabPosition - headerHeight - 20,
                 behavior: 'smooth'
             });
-            console.log("scrolling to active tab", activeTab);
         }, 100);
     }
 }
@@ -418,6 +333,7 @@ async function retrieveChromeTabs() {
         activeWindowId: currentWindow.id
     };
 }
+
 //Below this, code is not NOT USED - to be removed
 function registerSubmitEventListener(){
     var keyAchievementsText = '';
@@ -512,41 +428,6 @@ function fetchAPI(userPrompt, systemPrompt, successFn) {
         loadingBar.style.display = 'none';
     });
 };
-
-// Add new functions for organised tabs view
-function formatOrganizedTabInfo(categorizedTabs) {
-    if (!categorizedTabs) {
-        return '<div class="error">Failed to organize tabs. Please try again.</div>';
-    }
-
-    let output = '<ul>';
-    
-    // Sort categories alphabetically
-    const sortedCategories = Object.keys(categorizedTabs).sort();
-    
-    for (const category of sortedCategories) {
-        const tabs = categorizedTabs[category];
-        if (tabs.length > 0) {
-            output += `<li>${category} (${tabs.length}):<ul>`;
-            
-            tabs.forEach(tab => {
-                const activeClass = tab.active ? 'active-tab' : '';
-                const duration = formatDuration(tab.openDuration);
-                
-                output += `<li class="tab-item ${activeClass}" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">
-                    <div><a href="#" class="tab-link" data-tab-id="${tab.id}">${tab.title}</a>(${tab.domain})</div>
-                    <div>Open for: ${duration}</div>
-                    <button class="close-tab-btn outline" data-tab-id="${tab.id}">Close Tab</button>
-                </li>`;
-            });
-            
-            output += '</ul></li>';
-        }
-    }
-    
-    output += '</ul>';
-    return output;
-}
 
 // Helper function to check if tabs have changed and update cache for removals
 function haveTabsChanged(newTabs) {
@@ -683,6 +564,41 @@ Return ONLY the JSON object, with no additional text or explanation.`.trim();
     } catch (error) {
         console.error('Error organizing tabs:', error);
         return null;
+    }
+}
+
+async function getCurrentTabContent() {
+    const activeTab = await getActiveTab();
+    if (!activeTab) return null;
+
+    const results = await chrome.scripting.executeScript({
+        target: {tabId: activeTab.id},
+        function: () => document.body.innerText
+    });
+
+    return {
+        tabId: activeTab.id,
+        content: results[0].result
+    };
+}
+
+async function getActiveTab() {
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+    return tabs[0];
+}
+
+// Helper function to format duration
+function formatDuration(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes % 60}m`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds % 60}s`;
+    } else {
+        return `${seconds}s`;
     }
 }
 
