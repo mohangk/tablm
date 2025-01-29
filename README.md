@@ -17,6 +17,27 @@ A simple Chrome extension to help bring more "smarts" to managing your tabs
 
 ### Recent Changes
 
+#### Improved Tab Categorization Data Structure (2024-03-22)
+- Modified categorization system to store only tab IDs instead of full tab objects
+- Categories now contain arrays of tab IDs which reference the original tab data
+- Reduced memory usage by avoiding duplicate tab data storage
+- Improved tab lookup efficiency in organized views
+- Updated `haveTabsChanged` function to work with tab IDs
+- Simplified cache management by using direct references
+- Enhanced prompt to ensure all tabs are categorized by:
+  - Including total tab count in the task description
+  - Adding explicit requirement that every tab must be assigned exactly one category
+  - Specifying that sum of tabs across categories must equal total tab count
+
+Example of new category structure:
+```javascript
+{
+    "Work": [1, 2, 3],
+    "Social": [4, 5],
+    "Shopping": [6, 7]
+}
+```
+
 #### Added Tab Organization Caching System (2024-03-21)
 - Implemented smart caching system for organized tabs to reduce Claude API calls
 - Added `haveTabsChanged()` function to detect meaningful tab updates

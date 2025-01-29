@@ -4,7 +4,7 @@ import { formatTabInfo, formatOrganizedTabInfo } from './tabList.js';
 // Stores the last chat response for each tab by tab ID
 const lastChatResponse = {};
 
-// Cache for organized tabs
+// Cache for categorized tabs
 let tabsCache = {
     tabs: null,  // The original tab data used for categorization
     categories: null  // The categorized tabs from Claude
@@ -83,7 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('tab-search').addEventListener('input', function() {
         updateTabsList(false);
     });
-
 
     // Update the textarea input listener for Enter key
     document.getElementById('chat-textarea').addEventListener('keypress', async function(e) {
@@ -247,7 +246,7 @@ async function updateTabsList(isOrganizedView = false) {
     
     if (isOrganizedView) {
         const organizedTabs = await getOrganizedTabsFromClaude(tabs);
-        document.getElementById('organised-tabs').innerHTML = formatOrganizedTabInfo(organizedTabs);
+        document.getElementById('organised-tabs').innerHTML = formatOrganizedTabInfo(organizedTabs, tabs);
     } else {
         document.getElementById('tabs-list').innerHTML = formatTabInfo(tabs, getSortType(), getSearchTerm());
     }
@@ -318,6 +317,7 @@ async function retrieveChromeTabs() {
         } catch (error) {
             console.warn(`Failed to parse URL for tab ${tab.id}:`, error);
         }
+        //TODO: Include windowId and tabId in the tab object. Possibly flatten the structure to be a list of tabs indexed by tabId
         windows[tab.windowId][tab.id] = {
             url: tab.url,
             title: tab.title,
@@ -471,14 +471,19 @@ function haveTabsChanged(newTabs) {
     // If we get here, only removals happened (or no changes)
     // Update the categories by removing deleted tabs
     for (const category in tabsCache.categories) {
-        const remainingTabs = tabsCache.categories[category].filter(tab => {
-            const windowTabs = newTabs.windows[tab.windowId];
-            return windowTabs && windowTabs[tab.id];
+        const remainingTabIds = tabsCache.categories[category].filter(tabId => {
+            // Check if this tabId exists in any window of the new tabs
+            for (const windowId in newTabs.windows) {
+                if (newTabs.windows[windowId][tabId]) {
+                    return true;
+                }
+            }
+            return false;
         });
         
-        if (remainingTabs.length > 0) {
-            updatedCategories[category] = remainingTabs;
-            if (remainingTabs.length !== tabsCache.categories[category].length) {
+        if (remainingTabIds.length > 0) {
+            updatedCategories[category] = remainingTabIds;
+            if (remainingTabIds.length !== tabsCache.categories[category].length) {
                 hasChanges = true;
             }
         } else {
@@ -494,7 +499,7 @@ function haveTabsChanged(newTabs) {
     
     return false;
 }
-
+//TODO: getOrganizedTabsFromClaude,  haveTabsChanged, queryClaudeForTabs and tabsCache should be moved into its own module
 // Add new function to get organized tabs from Claude
 async function getOrganizedTabsFromClaude(tabData) {
     // Check if anything changed (and handle removals if that's all that changed)
@@ -507,6 +512,7 @@ async function getOrganizedTabsFromClaude(tabData) {
 }
 
 // Helper function to query Claude for new organization
+// TODO: Add ability to provide a list of categories as a config option
 async function queryClaudeForTabs(tabData) {
     const apiKey = document.getElementById('api-key').value.trim();
     if (!apiKey) {
@@ -514,7 +520,7 @@ async function queryClaudeForTabs(tabData) {
         return null;
     }
 
-    // First, flatten the tabs into a single array with their IDs
+    // Flatten the tabs into an array while ensuring proper JSON escaping
     let allTabs = [];
     for (let windowId in tabData.windows) {
         for (let tabId in tabData.windows[windowId]) {
@@ -526,17 +532,17 @@ async function queryClaudeForTabs(tabData) {
         }
     }
 
-    const prompt = `<task>Organize browser tabs into logical categories based on their content and purpose.</task>
+    const prompt = `<task>Organize ${allTabs.length} browser tabs into logical categories based on their content and purpose. Every tab must be assigned to exactly one category - ensure all ${allTabs.length} tabs are categorized.</task>
 
 <output_format>
-The response should be a valid JSON object with:
-- keys: category names (e.g. "Work", "Social Media", "Shopping", "News", "Documentation")
-- values: arrays of tab objects
-- each tab object must preserve ALL original properties exactly as provided
+The response should be a valid JSON object where:
+- keys are category names (e.g. "AI research", "Engineering productivity", "Architecture research", "Meeting notes", "Strategy docs", "1-1 notes", "News", "Postmortems", "Technical docs", "News")
+- values are arrays containing ONLY tab IDs (numbers)
+- the sum of all tabs across categories must equal ${allTabs.length}
 Example structure:
 {
-    "Category1": [tab1, tab2],
-    "Category2": [tab3, tab4]
+    "Category1": [1, 2],
+    "Category2": [3, 4]
 }
 </output_format>
 
@@ -552,15 +558,15 @@ Return ONLY the JSON object, with no additional text or explanation.`.trim();
             console.error('Claude API Error:', response.error);
             return null;
         }
-        console.log("Claude response", response.content[0].text);
-        // Parse the JSON response from Claude
-        const categorizedTabs = JSON.parse(response.content[0].text);
         
-        // Update cache
-        tabsCache.tabs = JSON.parse(JSON.stringify(tabData)); // Deep copy
-        tabsCache.categories = categorizedTabs;
+        // Parse the JSON response from Claude (contains only categories and tab IDs)
+        const categorizedTabIds = JSON.parse(response.content[0].text);
         
-        return categorizedTabs;
+        // Update cache - a reference is sufficient since we don't modify the data
+        tabsCache.tabs = tabData;
+        tabsCache.categories = categorizedTabIds;
+        
+        return categorizedTabIds;
     } catch (error) {
         console.error('Error organizing tabs:', error);
         return null;

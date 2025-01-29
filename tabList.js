@@ -27,27 +27,43 @@ export function formatTabInfo(tabData, sortBy = 'index', searchTerm = '') {
 }
 
 // Format organized tabs info
-export function formatOrganizedTabInfo(categorizedTabs) {
-    if (!categorizedTabs) {
-        return '<div class="error">Failed to organize tabs. Please try again.</div>';
+export function formatOrganizedTabInfo(categories, tabData) {
+    if (!categories) {
+        return '<div class="error">Failed to organize tabs</div>';
     }
 
-    let output = '<ul>';
-    const sortedCategories = Object.keys(categorizedTabs).sort();
+    let html = '<ul class="windows-list">';
     
-    for (const category of sortedCategories) {
-        const tabs = categorizedTabs[category];
-        if (tabs.length > 0) {
-            output += `<li>${category} (${tabs.length}):<ul>`;
-            tabs.forEach(tab => {
-                output += renderTabItem(tab, tab.windowId);
-            });
-            output += '</ul></li>';
-        }
+    for (const category in categories) {
+        html += `<li class="window-item">
+            <div class="window-header">${category}</div>
+            <ul class="tabs-list">`;
+        
+        // Get tab IDs for this category
+        const tabIds = categories[category];
+        
+        // Look up each tab's data from the provided tabData
+        tabIds.forEach(tabId => {
+            // Find the window containing this tab
+            for (const windowId in tabData.windows) {
+                const tab = tabData.windows[windowId][tabId];
+                if (tab) {
+                    // Construct tab object in the format expected by renderTabItem
+                    const t = {
+                        ...tab,
+                        id: tabId
+                    };
+                    html += renderTabItem(t, windowId);
+                    break; // Found the tab, no need to check other windows
+                }
+            }
+        });
+        
+        html += '</ul></li>';
     }
     
-    output += '</ul>';
-    return output;
+    html += '</ul>';
+    return html;
 }
 
 // Helper function to get sorted and filtered tabs
