@@ -3,20 +3,26 @@
 // Format the tab information in a way that is easily read
 export function formatTabInfo(tabData, sortBy = 'index', searchTerm = '') {
     let output = '<ul>';
-    const { windows, activeWindowId } = tabData;
+    const { tabs, activeWindowId } = tabData;
     
-    for (let windowId in windows) {
-        let windowHasTabs = false;
+    // Group tabs by windowId first
+    const tabsByWindow = {};
+    Object.values(tabs).forEach(tab => {
+        if (!tabsByWindow[tab.windowId]) {
+            tabsByWindow[tab.windowId] = [];
+        }
+        tabsByWindow[tab.windowId].push(tab);
+    });
+    
+    for (let windowId in tabsByWindow) {
         let windowTabs = '';
         
-        const sortedTabs = getSortedTabs(windows[windowId], sortBy, searchTerm);
+        const sortedTabs = getSortedTabs(tabsByWindow[windowId], sortBy, searchTerm);
         
-        for (let [tabId, tab] of sortedTabs) {
-            windowHasTabs = true;
-            windowTabs += renderTabItem(tab, windowId);
-        }
-        
-        if (windowHasTabs) {
+        if (sortedTabs.length > 0) {
+            sortedTabs.forEach(tab => {
+                windowTabs += renderTabItem(tab, windowId);
+            });
             output += renderWindowSection(windowId, windowTabs, windowId == activeWindowId);
         }
     }
@@ -43,13 +49,9 @@ export function formatOrganizedTabInfo(categories, tabData) {
         
         // Look up each tab's data from the provided tabData
         tabIds.forEach(tabId => {
-            // Find the window containing this tab
-            for (const windowId in tabData.windows) {
-                const tab = tabData.windows[windowId][tabId];
-                if (tab) {
-                    html += renderTabItem(tab, windowId);
-                    break; // Found the tab, no need to check other windows
-                }
+            const tab = tabData[tabId];
+            if (tab) {
+                html += renderTabItem(tab, tab.windowId);
             }
         });
         
@@ -61,17 +63,17 @@ export function formatOrganizedTabInfo(categories, tabData) {
 }
 
 // Helper function to get sorted and filtered tabs
-function getSortedTabs(windowTabs, sortBy, searchTerm) {
-    return Object.entries(windowTabs)
-        .filter(([_, tab]) => {
+function getSortedTabs(tabs, sortBy, searchTerm) {
+    return tabs
+        .filter(tab => {
             return tab.title.toLowerCase().includes(searchTerm) || 
                    tab.url.toLowerCase().includes(searchTerm);
         })
         .sort((a, b) => {
             if (sortBy === 'domain') {
-                return a[1].domain.localeCompare(b[1].domain);
+                return a.domain.localeCompare(b.domain);
             }
-            return a[1].index - b[1].index;
+            return a.index - b.index;
         });
 }
 

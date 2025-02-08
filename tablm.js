@@ -6,7 +6,7 @@ const lastChatResponse = {};
 
 // Cache for categorized tabs
 let tabsCache = {
-    tabs: null,  // The original tab data used for categorization
+    tabs: null,  // The flat tab data indexed by tab ID
     categories: null  // The categorized tabs from Claude
 };
 
@@ -242,13 +242,13 @@ function getSearchTerm() {
 
 // Function to update the tabs list
 async function updateTabsList(isOrganizedView = false) {
-    const tabs = await retrieveChromeTabs();
+    const tabData = await retrieveChromeTabs();
     
     if (isOrganizedView) {
-        const organizedTabs = await getOrganizedTabsFromClaude(tabs);
-        document.getElementById('organised-tabs').innerHTML = formatOrganizedTabInfo(organizedTabs, tabs);
+        const organizedTabs = await getOrganizedTabsFromClaude(tabData.tabs);
+        document.getElementById('organised-tabs').innerHTML = formatOrganizedTabInfo(organizedTabs, tabData);
     } else {
-        document.getElementById('tabs-list').innerHTML = formatTabInfo(tabs, getSortType(), getSearchTerm());
+        document.getElementById('tabs-list').innerHTML = formatTabInfo(tabData, getSortType(), getSearchTerm());
     }
     
     registerTabEventHandlers();
@@ -303,21 +303,18 @@ async function retrieveChromeTabs() {
         chrome.windows.getCurrent()
     ]);
     
-    let windows = {};
+    let tabsById = {};
     const currentTime = new Date().getTime();
     
-    // Group tabs by windowId
+    // Create flat structure of tabs indexed by tab ID
     tabs.forEach(tab => {
-        if (!windows[tab.windowId]) {
-            windows[tab.windowId] = {};
-        }
         let domain = '';
         try {
             domain = new URL(tab.url).hostname;
         } catch (error) {
             console.warn(`Failed to parse URL for tab ${tab.id}:`, error);
         }
-        windows[tab.windowId][tab.id] = {
+        tabsById[tab.id] = {
             url: tab.url,
             title: tab.title,
             domain: domain,
@@ -330,7 +327,7 @@ async function retrieveChromeTabs() {
     });
 
     return {
-        windows: windows,
+        tabs: tabsById,
         activeWindowId: currentWindow.id
     };
 }
@@ -431,41 +428,23 @@ function fetchAPI(userPrompt, systemPrompt, successFn) {
 };
 
 // Helper function to check if tabs have changed and update cache for removals
-function haveTabsChanged(newTabs) {
+function haveTabsChanged(tabs) {
     if (!tabsCache.tabs) return true;
     
     let hasChanges = false;
     const updatedCategories = {};
     
-    // First check if any new windows were added
-    if (Object.keys(newTabs.windows).length > Object.keys(tabsCache.tabs.windows).length) {
-        return true;
-    }
-    
-    // Go through each window in the new tabs
-    for (const windowId in newTabs.windows) {
-        const newWindow = newTabs.windows[windowId];
-        const cachedWindow = tabsCache.tabs.windows[windowId];
+    // Check each tab in the new tabs for modifications or if it's a new tab
+    // Just a removal of a tab is not considered a change
+    for (const tabId in tabs) {
+        const newTab = tabs[tabId];
+        const cachedTab = tabsCache.tabs[tabId];
         
-        // If there's a new window, that's a change
-        if (!cachedWindow) return true;
-        
-        // If new tabs were added to this window, that's a change
-        if (Object.keys(newWindow).length > Object.keys(cachedWindow).length) {
+        // If there's a new tab or a tab was modified, that's a change
+        if (!cachedTab || 
+            newTab.url !== cachedTab.url || 
+            newTab.title !== cachedTab.title) {
             return true;
-        }
-        
-        // Check each tab in the new window
-        for (const tabId in newWindow) {
-            const newTab = newWindow[tabId];
-            const cachedTab = cachedWindow[tabId];
-            
-            // If there's a new tab or a tab was modified, that's a change
-            if (!cachedTab || 
-                newTab.url !== cachedTab.url || 
-                newTab.title !== cachedTab.title) {
-                return true;
-            }
         }
     }
     
@@ -473,13 +452,7 @@ function haveTabsChanged(newTabs) {
     // Update the categories by removing deleted tabs
     for (const category in tabsCache.categories) {
         const remainingTabIds = tabsCache.categories[category].filter(tabId => {
-            // Check if this tabId exists in any window of the new tabs
-            for (const windowId in newTabs.windows) {
-                if (newTabs.windows[windowId][tabId]) {
-                    return true;
-                }
-            }
-            return false;
+            return tabs[tabId] !== undefined;
         });
         
         if (remainingTabIds.length > 0) {
@@ -494,18 +467,19 @@ function haveTabsChanged(newTabs) {
     
     // Update cache if we only had removals
     if (hasChanges) {
-        tabsCache.tabs = JSON.parse(JSON.stringify(newTabs));
+        tabsCache.tabs = tabs;
         tabsCache.categories = updatedCategories;
     }
     
     return false;
 }
-//TODO: getOrganizedTabsFromClaude,  haveTabsChanged, queryClaudeForTabs and tabsCache should be moved into its own module
+
+//TODO: getOrganizedTabsFromClaude, haveTabsChanged, queryClaudeForTabs and tabsCache should be moved into its own module
 // Add new function to get organized tabs from Claude
-async function getOrganizedTabsFromClaude(tabData) {
+async function getOrganizedTabsFromClaude(tabs) {
     // Check if anything changed (and handle removals if that's all that changed)
-    if (haveTabsChanged(tabData)) {
-        return await queryClaudeForTabs(tabData);
+    if (haveTabsChanged(tabs)) {
+        return await queryClaudeForTabs(tabs);
     }
 
     console.log("Using cached organized tabs");
@@ -514,20 +488,15 @@ async function getOrganizedTabsFromClaude(tabData) {
 
 // Helper function to query Claude for new organization
 // TODO: Add ability to provide a list of categories as a config option
-async function queryClaudeForTabs(tabData) {
+async function queryClaudeForTabs(tabs) {
     const apiKey = document.getElementById('api-key').value.trim();
     if (!apiKey) {
         alert('Please enter your Claude API key first');
         return null;
     }
 
-    // Flatten the tabs into an array while ensuring proper JSON escaping
-    let allTabs = [];
-    for (let windowId in tabData.windows) {
-        for (let tabId in tabData.windows[windowId]) {
-            allTabs.push(tabData.windows[windowId][tabId]);
-        }
-    }
+    // Convert tabs object to array
+    let allTabs = Object.values(tabs);
 
     const prompt = `<task>Organize ${allTabs.length} browser tabs into logical categories based on their content and purpose. Every tab must be assigned to exactly one category - ensure all ${allTabs.length} tabs are categorized.</task>
 
@@ -559,8 +528,8 @@ Return ONLY the JSON object, with no additional text or explanation.`.trim();
         // Parse the JSON response from Claude (contains only categories and tab IDs)
         const categorizedTabIds = JSON.parse(response.content[0].text);
         
-        // Update cache - a reference is sufficient since we don't modify the data
-        tabsCache.tabs = tabData;
+        // Update cache - store only the tabs object and categories
+        tabsCache.tabs = tabs;
         tabsCache.categories = categorizedTabIds;
         
         return categorizedTabIds;

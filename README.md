@@ -17,7 +17,19 @@ A simple Chrome extension to help bring more "smarts" to managing your tabs
 
 ### Recent Changes
 
-#### Improved Tab Categorization Data Structure (2024-03-22)
+#### Improved Tab Organization System (2025-02-08 22:00:08 +08)
+- Simplified data flow in tab organization functions to use flat tab structure
+- Modified functions to accept only the data they need:
+  - `haveTabsChanged` now accepts just the tabs object
+  - `queryClaudeForTabs` now accepts just the tabs object
+  - `getOrganizedTabsFromClaude` now accepts just the tabs object
+- Clarified tab change detection logic:
+  - Tab removals alone don't trigger re-categorization
+  - Only new tabs or modified tabs trigger re-categorization
+  - Removed tabs are automatically pruned from categories
+- Removed unnecessary nesting in tabsCache structure
+- Improved code consistency and modularity
+
 - Modified categorization system to store only tab IDs instead of full tab objects
 - Categories now contain arrays of tab IDs which reference the original tab data
 - Reduced memory usage by avoiding duplicate tab data storage
