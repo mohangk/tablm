@@ -13,7 +13,6 @@ export function formatTabInfo(tabData, sortBy = 'index', searchTerm = '') {
         
         for (let [tabId, tab] of sortedTabs) {
             windowHasTabs = true;
-            tab.id = tabId;
             windowTabs += renderTabItem(tab, windowId);
         }
         
@@ -48,12 +47,7 @@ export function formatOrganizedTabInfo(categories, tabData) {
             for (const windowId in tabData.windows) {
                 const tab = tabData.windows[windowId][tabId];
                 if (tab) {
-                    // Construct tab object in the format expected by renderTabItem
-                    const t = {
-                        ...tab,
-                        id: tabId
-                    };
-                    html += renderTabItem(t, windowId);
+                    html += renderTabItem(tab, windowId);
                     break; // Found the tab, no need to check other windows
                 }
             }

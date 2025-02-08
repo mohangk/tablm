@@ -317,14 +317,15 @@ async function retrieveChromeTabs() {
         } catch (error) {
             console.warn(`Failed to parse URL for tab ${tab.id}:`, error);
         }
-        //TODO: Include windowId and tabId in the tab object. Possibly flatten the structure to be a list of tabs indexed by tabId
         windows[tab.windowId][tab.id] = {
             url: tab.url,
             title: tab.title,
             domain: domain,
             openDuration: currentTime - tab.lastAccessed,
             index: tab.index,
-            active: tab.active
+            active: tab.active,
+            id: tab.id,
+            windowId: tab.windowId
         };
     });
 
@@ -524,11 +525,7 @@ async function queryClaudeForTabs(tabData) {
     let allTabs = [];
     for (let windowId in tabData.windows) {
         for (let tabId in tabData.windows[windowId]) {
-            allTabs.push({
-                ...tabData.windows[windowId][tabId],
-                id: parseInt(tabId),
-                windowId: parseInt(windowId)
-            });
+            allTabs.push(tabData.windows[windowId][tabId]);
         }
     }
 
