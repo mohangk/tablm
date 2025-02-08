@@ -17,6 +17,21 @@ A simple Chrome extension to help bring more "smarts" to managing your tabs
 
 ### Recent Changes
 
+#### Changed Tab Update Logic (2025-02-08 23:11:41 +08)
+- Made window ID handling more explicit and consistent:
+  - Modified `retrieveChromeTabs` to return only the tabs object and not the activeWindowId
+  - Modified `updateTabsList` to require explicit `activeWindowId` parameter instead of using optional parameter with fallback
+  - Moved window ID determination logic to call sites (DOM event handlers)
+  - Updated all event handlers to explicitly pass window IDs:
+    - Initial page load now gets current window ID
+    - Window focus change handler passes the focused window ID
+    - Tab event handlers (create/remove/update) pass their respective window IDs
+    - Search and sort handlers get and pass current window ID
+  - Made async/await usage consistent across event handlers
+- Simplified data passing in organized view:
+  - Removed unnecessary object wrapping of tab data
+  - Made parameter usage more consistent between regular and organized views
+
 #### Improved Tab Organization System (2025-02-08 22:00:08 +08)
 - Simplified data flow in tab organization functions to use flat tab structure
 - Modified functions to accept only the data they need:

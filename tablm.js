@@ -10,21 +10,24 @@ let tabsCache = {
     categories: null  // The categorized tabs from Claude
 };
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log("tablm is running");
 
+    // Get current window ID for initial load
+    const currentWindow = await chrome.windows.getCurrent();
     // Retrieve and display the tabs upon loading
-    updateTabsList(false);
+    updateTabsList(false, currentWindow.id);
 
     //trigger similar behaviour to onactivated listener when the window is brought to the foreground
     chrome.windows.onFocusChanged.addListener((windowId) => {
         console.log("window brought to foreground", windowId);
-        updateTabsList(false);
+        updateTabsList(false, windowId);
     });
 
     // Add sort checkbox listener
-    document.getElementById('sort-by-domain').addEventListener('change', function() {
-        updateTabsList(false);
+    document.getElementById('sort-by-domain').addEventListener('change', async function() {
+        const currentWindow = await chrome.windows.getCurrent();
+        updateTabsList(false, currentWindow.id);
     });
     
     // START :Chrome tab event listeners
@@ -60,28 +63,29 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToActiveTab();
     });
 
-    chrome.tabs.onCreated.addListener(() => {
+    chrome.tabs.onCreated.addListener((tab) => {
         console.log("adding tab");
-        updateTabsList(false);
+        updateTabsList(false, tab.windowId);
     });
     
-    chrome.tabs.onRemoved.addListener(() => {
+    chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
         console.log("removing tab");
-        updateTabsList(false);
+        updateTabsList(false, removeInfo.windowId);
     });
 
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         console.log("tab updated", tabId, changeInfo, tab);
         if (changeInfo.url) {
             console.log("tab URL changed");
-            updateTabsList(false);
+            updateTabsList(false, tab.windowId);
         }
     });
     // END : chrome tab event listeners
 
     // Add search input listener
-    document.getElementById('tab-search').addEventListener('input', function() {
-        updateTabsList(false);
+    document.getElementById('tab-search').addEventListener('input', async function() {
+        const currentWindow = await chrome.windows.getCurrent();
+        updateTabsList(false, currentWindow.id);
     });
 
     // Update the textarea input listener for Enter key
@@ -197,9 +201,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show loading state
         document.getElementById('organised-tabs').innerHTML = '<div class="loading">Organizing tabs...</div>';
 
-        // Update with organized view
-        await updateTabsList(true);
-            });
+        // Update with organized view - activeWindowId not needed for organized view
+        const currentWindow = await chrome.windows.getCurrent();
+        await updateTabsList(true, currentWindow.id);
+    });
 
 });
 
@@ -241,14 +246,14 @@ function getSearchTerm() {
 }
 
 // Function to update the tabs list
-async function updateTabsList(isOrganizedView = false) {
-    const tabData = await retrieveChromeTabs();
+async function updateTabsList(isOrganizedView, activeWindowId) {
+    const tabs = await retrieveChromeTabs();
     
     if (isOrganizedView) {
-        const organizedTabs = await getOrganizedTabsFromClaude(tabData.tabs);
-        document.getElementById('organised-tabs').innerHTML = formatOrganizedTabInfo(organizedTabs, tabData);
+        const organizedTabs = await getOrganizedTabsFromClaude(tabs);
+        document.getElementById('organised-tabs').innerHTML = formatOrganizedTabInfo(organizedTabs, tabs);
     } else {
-        document.getElementById('tabs-list').innerHTML = formatTabInfo(tabData, getSortType(), getSearchTerm());
+        document.getElementById('tabs-list').innerHTML = formatTabInfo({ tabs, activeWindowId }, getSortType(), getSearchTerm());
     }
     
     registerTabEventHandlers();
@@ -265,7 +270,8 @@ function registerTabEventHandlers() {
             
             // Check if we're in organized view or regular view
             const isOrganizedView = document.getElementById('organised-tabs').style.display === 'block';
-            await updateTabsList(isOrganizedView);
+            const currentWindow = await chrome.windows.getCurrent();
+            await updateTabsList(isOrganizedView, currentWindow.id);
         });
     });
 
@@ -297,11 +303,8 @@ function scrollToActiveTab() {
 }
 
 async function retrieveChromeTabs() {
-    // Get all tabs and the current window in parallel
-    const [tabs, currentWindow] = await Promise.all([
-        chrome.tabs.query({}),
-        chrome.windows.getCurrent()
-    ]);
+    // Get all tabs
+    const tabs = await chrome.tabs.query({});
     
     let tabsById = {};
     const currentTime = new Date().getTime();
@@ -326,10 +329,7 @@ async function retrieveChromeTabs() {
         };
     });
 
-    return {
-        tabs: tabsById,
-        activeWindowId: currentWindow.id
-    };
+    return tabsById;
 }
 
 //Below this, code is not NOT USED - to be removed
