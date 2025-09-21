@@ -17,6 +17,12 @@ A simple Chrome extension to help bring more "smarts" to managing your tabs
 
 ### Recent Changes
 
+#### Configuration Management Improvements (2025-09-21)
+- **Complete configuration system overhaul**: Added comprehensive AI configuration management with support for multiple providers (Anthropic, OpenAI, Together AI, Groq, Custom)
+- **New configuration UI**: Added dedicated Configuration tab with provider selection, model configuration, and endpoint management
+- **Multi-API support**: Replaced Claude-specific `sendPromptToClaude` with generic `sendPromptToAI` supporting both Anthropic and OpenAI API formats
+- **Persistent configuration**: Migrated from session storage to local storage for configuration persistence across browser sessions
+
 #### Changed Tab Update Logic (2025-02-08 23:11:41 +08)
 - Made window ID handling more explicit and consistent:
   - Modified `retrieveChromeTabs` to return only the tabs object and not the activeWindowId

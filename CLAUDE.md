@@ -78,6 +78,8 @@ Tabs are stored as a flat object indexed by tab ID:
 - `getOrganizedTabsFromClaude(tabs)`: Handles AI-powered tab organization with caching
 - `haveTabsChanged(tabs)`: Smart change detection for cache invalidation
 - `registerTabEventHandlers()`: Sets up tab interaction event listeners
+- `sendPromptToAI(prompt, context, config)`: Core AI API interface that accepts configuration as-is
+- Configuration handlers: `handleDialectChange()`, `handleProviderChange()`, `handleModelChange()`, `handleEndpointChange()`
 
 #### tabList.js
 - `formatTabInfo(tabData, sortBy, searchTerm)`: Renders standard tab view
@@ -85,9 +87,10 @@ Tabs are stored as a flat object indexed by tab ID:
 - `renderTabItem(tab, windowId)`: Individual tab HTML generation
 
 ### State Management
-- Session storage for API key persistence
+- Local storage for API configuration persistence (visible API keys for debugging)
 - In-memory caching for organized tabs
 - Per-tab chat history storage (`lastChatResponse` object)
+- Scoped event handlers for configuration controls (improved from global document listener)
 
 ### UI Views
 1. **Tabs**: Standard tab list with search and sort
@@ -99,8 +102,9 @@ No automated test framework is currently configured. Manual testing through Chro
 
 ## Important Notes
 
-- API key is stored in session storage, not persisted across browser sessions
+- API configuration is stored in local storage and persisted across browser sessions
+- API keys are visible in both UI and console logs for easier debugging (no masking)
 - Tab organization requires Claude API key to be configured
 - Extension requires Chrome's `activeTab`, `scripting`, `sidePanel`, `storage`, and `tabs` permissions
 - Uses ES6 modules for modular code organization
-- Legacy/unused code exists in tablm.js (lines 335-428) marked for removal
+- Configuration event handling uses specific, scoped listeners instead of global document listener

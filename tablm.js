@@ -10,6 +10,83 @@ let tabsCache = {
     categories: null  // The categorized tabs from Claude
 };
 
+// Configuration management
+const defaultConfig = {
+    apiDialect: 'anthropic',
+    provider: 'anthropic',
+    endpoint: 'https://api.anthropic.com/v1/messages',
+    model: 'claude-3-5-haiku-latest',
+    apiKey: ''
+};
+
+function loadConfiguration() {
+    const stored = localStorage.getItem('aiConfig');
+    if (stored) {
+        try {
+            const parsedConfig = JSON.parse(stored);
+            
+            // Validate that all required properties exist
+            const requiredKeys = Object.keys(defaultConfig);
+            const missingKeys = requiredKeys.filter(key => !(key in parsedConfig));
+            
+            if (missingKeys.length > 0) {
+                console.warn('Stored configuration is missing required properties:', missingKeys, 'Using defaults');
+                return defaultConfig;
+            }
+            
+            return parsedConfig;
+        } catch (error) {
+            console.warn('Failed to parse stored configuration, using defaults:', error);
+            return defaultConfig;
+        }
+    }
+    return defaultConfig;
+}
+
+function saveConfiguration(config) {
+    localStorage.setItem('aiConfig', JSON.stringify(config));
+    console.log('Configuration saved:', config);
+}
+
+function getEndpointForProvider(provider, dialect) {
+    const endpoints = {
+        anthropic: 'https://api.anthropic.com/v1/messages',
+        openai: 'https://api.openai.com/v1/chat/completions',
+        together: 'https://api.together.xyz/v1/chat/completions',
+        groq: 'https://api.groq.com/openai/v1/chat/completions'
+    };
+
+    if (provider === 'custom') return '';
+    return endpoints[provider] || endpoints.anthropic;
+}
+
+function updateConfigurationUI() {
+    const config = loadConfiguration();
+
+    // Set dialect radio buttons
+    document.getElementById('dialect-anthropic').checked = config.apiDialect === 'anthropic';
+    document.getElementById('dialect-openai').checked = config.apiDialect === 'openai';
+
+    // Set provider dropdown
+    document.getElementById('provider-select').value = config.provider;
+
+    // Set model and API key
+    document.getElementById('model-name').value = config.model;
+    document.getElementById('api-key').value = config.apiKey;
+
+    // Always show endpoint field, but make it readonly for predefined providers
+    const endpointField = document.getElementById('custom-endpoint');
+    endpointField.value = config.endpoint;
+
+    if (config.provider === 'custom') {
+        endpointField.readOnly = false;
+        endpointField.style.backgroundColor = '';
+    } else {
+        endpointField.readOnly = true;
+        endpointField.style.backgroundColor = '#f5f5f5';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     console.log("tablm is running");
 
@@ -90,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Update the textarea input listener for Enter key
     document.getElementById('chat-textarea').addEventListener('keypress', async function(e) {
-        const apiKey = document.getElementById('api-key').value.trim();
+        const config = loadConfiguration();
         if (e.key === 'Enter') {
             e.preventDefault(); // Prevent default newline
             const chatBox = document.getElementById('chat-response');
@@ -119,13 +196,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             const pageInfo = await getCurrentTabContent();
             if (pageInfo) {
-                const response = await sendPromptToClaude(userInput, pageInfo.content, apiKey);
-                if (response.error) {
-                    console.error('Claude API Error:', response.error);
-                    loadingDiv.textContent = 'Error: ' + response.error;
+                const response = await sendPromptToAI(userInput, pageInfo.content, config);
+                const result = extractResponseContent(response, config);
+
+                if (result.error) {
+                    console.error('AI API Error:', result.error);
+                    loadingDiv.textContent = 'Error: ' + result.error;
                 } else {
-                    console.log('Claude Response:', response.content[0].text);
-                    loadingDiv.textContent = response.content[0].text;
+                    console.log('AI Response:', result.content);
+                    loadingDiv.textContent = result.content;
                     // Store the entire chat HTML content
                     lastChatResponse[pageInfo.tabId] = chatBox.innerHTML;
                 }
@@ -133,35 +212,78 @@ document.addEventListener('DOMContentLoaded', async function() {
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
-});
-
-    // Add event listener to store API key on blur
-    const apiKeyInput = document.getElementById('api-key');
-    apiKeyInput.addEventListener('blur', function() {
-        const apiKey = apiKeyInput.value.trim();
-        if (apiKey) {
-            sessionStorage.setItem('apiKey', apiKey);
-            console.log('API key stored in session storage');
-}
     });
 
-    // Retrieve and set the API key from session storage on load
-    const storedApiKey = sessionStorage.getItem('apiKey');
-    if (storedApiKey) {
-        apiKeyInput.value = storedApiKey;
-        console.log('API key retrieved from session storage');
-}
+    // Configuration event listeners (scoped to specific controls)
+    function handleDialectChange(e) {
+        const config = loadConfiguration();
+        config.apiDialect = e.target.value;
+        if (config.provider !== 'custom') {
+            config.endpoint = getEndpointForProvider(config.provider, e.target.value);
+            document.getElementById('custom-endpoint').value = config.endpoint;
+        }
+        saveConfiguration(config);
+    }
+
+    function handleProviderChange(e) {
+        const config = loadConfiguration();
+        config.provider = e.target.value;
+        config.endpoint = getEndpointForProvider(e.target.value, config.apiDialect);
+
+        const endpointField = document.getElementById('custom-endpoint');
+        endpointField.value = config.endpoint;
+
+        if (e.target.value === 'custom') {
+            endpointField.readOnly = false;
+            endpointField.style.backgroundColor = '';
+        } else {
+            endpointField.readOnly = true;
+            endpointField.style.backgroundColor = '#f5f5f5';
+        }
+
+        saveConfiguration(config);
+    }
+
+    function handleModelChange(e) {
+        const config = loadConfiguration();
+        config.model = e.target.value;
+        saveConfiguration(config);
+    }
+
+    function handleEndpointChange(e) {
+        const config = loadConfiguration();
+        config.endpoint = e.target.value;
+        saveConfiguration(config);
+    }
+
+    document.getElementById('dialect-anthropic').addEventListener('change', handleDialectChange);
+    document.getElementById('dialect-openai').addEventListener('change', handleDialectChange);
+    document.getElementById('provider-select').addEventListener('change', handleProviderChange);
+    document.getElementById('model-name').addEventListener('change', handleModelChange);
+    document.getElementById('custom-endpoint').addEventListener('change', handleEndpointChange);
+
+    document.getElementById('api-key').addEventListener('blur', function() {
+        const config = loadConfiguration();
+        config.apiKey = this.value.trim();
+        saveConfiguration(config);
+
+    });
+
+    // Initialize configuration UI
+    updateConfigurationUI();
 
     document.getElementById('nav-chat').addEventListener('click', async function(e) {
         e.preventDefault();
         this.classList.add('active-tab');
         document.getElementById('nav-tabs').classList.remove('active-tab');
         document.getElementById('nav-organised-tabs').classList.remove('active-tab');
+        document.getElementById('nav-configuration').classList.remove('active-tab');
 
         // Hide tabs list and show chat elements
         document.getElementById('tabs-list').style.display = 'none';
         document.getElementById('organised-tabs').style.display = 'none';
         document.getElementById('chat').style.display = 'block';
+        document.getElementById('configuration').style.display = 'none';
     
         // Get current tab ID and show previous chat if it exists
         const activeTab = await getActiveTab();
@@ -180,11 +302,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         this.classList.add('active-tab');
         document.getElementById('nav-chat').classList.remove('active-tab');
         document.getElementById('nav-organised-tabs').classList.remove('active-tab');
+        document.getElementById('nav-configuration').classList.remove('active-tab');
 
         // Show tabs list and hide other sections
         document.getElementById('tabs-list').style.display = 'block';
         document.getElementById('organised-tabs').style.display = 'none';
         document.getElementById('chat').style.display = 'none';
+        document.getElementById('configuration').style.display = 'none';
     });
 
     document.getElementById('nav-organised-tabs').addEventListener('click', async function(e) {
@@ -192,11 +316,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         this.classList.add('active-tab');
         document.getElementById('nav-tabs').classList.remove('active-tab');
         document.getElementById('nav-chat').classList.remove('active-tab');
-    
+        document.getElementById('nav-configuration').classList.remove('active-tab');
+
         // Show organised tabs and hide other sections
         document.getElementById('tabs-list').style.display = 'none';
         document.getElementById('organised-tabs').style.display = 'block';
         document.getElementById('chat').style.display = 'none';
+        document.getElementById('configuration').style.display = 'none';
 
         // Show loading state
         document.getElementById('organised-tabs').innerHTML = '<div class="loading">Organizing tabs...</div>';
@@ -206,34 +332,104 @@ document.addEventListener('DOMContentLoaded', async function() {
         await updateTabsList(true, currentWindow.id);
     });
 
+    document.getElementById('nav-configuration').addEventListener('click', function(e) {
+        e.preventDefault();
+        this.classList.add('active-tab');
+        document.getElementById('nav-tabs').classList.remove('active-tab');
+        document.getElementById('nav-chat').classList.remove('active-tab');
+        document.getElementById('nav-organised-tabs').classList.remove('active-tab');
+
+        // Show configuration and hide other sections
+        document.getElementById('tabs-list').style.display = 'none';
+        document.getElementById('organised-tabs').style.display = 'none';
+        document.getElementById('chat').style.display = 'none';
+        document.getElementById('configuration').style.display = 'block';
+    });
+
 });
 
 
-//send prompt to Claude
-function sendPromptToClaude(prompt, context, apiKey) {
-    console.log("sending prompt to claude", prompt, context, apiKey);
-    return fetch("https://api.anthropic.com/v1/messages", {
+//send prompt to AI (supports multiple API dialects)
+function sendPromptToAI(prompt, context = '', config) {
+    const fullPrompt = context ? `${prompt}\n\n${context}` : prompt;
+
+    console.log("sending prompt to AI", {
+        prompt: prompt.substring(0, 100) + '...',
+        config: config
+    });
+
+    if (config.apiDialect === 'anthropic') {
+        return sendAnthropicRequest(fullPrompt, config);
+    } else {
+        return sendOpenAIRequest(fullPrompt, config);
+    }
+}
+
+function sendAnthropicRequest(prompt, config) {
+    return fetch(config.endpoint, {
         method: "POST",
         headers: {
-            "x-api-key": apiKey,
+            "x-api-key": config.apiKey,
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
             "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-            model: "claude-3-5-haiku-latest",
+            model: config.model,
             max_tokens: 8192,
             messages: [
                 {
                     role: "user",
                     content: [
-                        { type: "text", text: prompt+"\n\n"+context },
+                        { type: "text", text: prompt },
                     ],
                 },
             ],
         }),
     })
-   .then((response) => response.json())
+    .then((response) => response.json());
+}
+
+function sendOpenAIRequest(prompt, config) {
+    return fetch(config.endpoint, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${config.apiKey}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            model: config.model,
+            max_completion_tokens: 8192,
+            messages: [
+                {
+                    role: "user",
+                    content: prompt,
+                },
+            ],
+        }),
+    })
+    .then((response) => response.json());
+}
+
+// Helper function to extract response content consistently across API formats
+function extractResponseContent(response, config) {
+    if (response.error) {
+        return { error: response.error };
+    }
+
+    if (config.apiDialect === 'anthropic') {
+        // Anthropic format: response.content[0].text
+        if (response.content && response.content[0] && response.content[0].text) {
+            return { content: response.content[0].text };
+        }
+    } else {
+        // OpenAI format: response.choices[0].message.content
+        if (response.choices && response.choices[0] && response.choices[0].message) {
+            return { content: response.choices[0].message.content };
+        }
+    }
+
+    return { error: 'Invalid response format' };
 }
 
 // UI helper functions
@@ -379,6 +575,25 @@ function haveTabsChanged(tabs) {
     return false;
 }
 
+async function getCurrentTabContent() {
+    const activeTab = await getActiveTab();
+    if (!activeTab) return null;
+
+    const results = await chrome.scripting.executeScript({
+        target: {tabId: activeTab.id},
+        function: () => document.body.innerText
+    });
+
+    return {
+        tabId: activeTab.id,
+        content: results[0].result
+    };
+}
+
+async function getActiveTab() {
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+    return tabs[0];
+}
 //TODO: getOrganizedTabsFromClaude, haveTabsChanged, queryClaudeForTabs and tabsCache should be moved into its own module
 // Add new function to get organized tabs from Claude
 async function getOrganizedTabsFromClaude(tabs) {
@@ -394,9 +609,9 @@ async function getOrganizedTabsFromClaude(tabs) {
 // Helper function to query Claude for new organization
 // TODO: Add ability to provide a list of categories as a config option
 async function queryClaudeForTabs(tabs) {
-    const apiKey = document.getElementById('api-key').value.trim();
-    if (!apiKey) {
-        alert('Please enter your Claude API key first');
+    const config = loadConfiguration();
+    if (!config.apiKey) {
+        alert('Please configure your API key in the Configuration tab first');
         return null;
     }
 
@@ -424,15 +639,17 @@ ${JSON.stringify(allTabs, null, 2)}
 Return ONLY the JSON object, with no additional text or explanation.`.trim();
 
     try {
-        const response = await sendPromptToClaude(prompt, '', apiKey);
-        if (response.error) {
-            console.error('Claude API Error:', response.error);
+        const response = await sendPromptToAI(prompt, '', config);
+        const result = extractResponseContent(response, config);
+
+        if (result.error) {
+            console.error('AI API Error:', result.error);
             return null;
         }
-        
-        // Parse the JSON response from Claude (contains only categories and tab IDs)
-        const categorizedTabIds = JSON.parse(response.content[0].text);
-        
+
+        // Parse the JSON response from AI (contains only categories and tab IDs)
+        const categorizedTabIds = JSON.parse(result.content);
+
         // Update cache - store only the tabs object and categories
         tabsCache.tabs = tabs;
         tabsCache.categories = categorizedTabIds;
@@ -443,40 +660,3 @@ Return ONLY the JSON object, with no additional text or explanation.`.trim();
         return null;
     }
 }
-
-async function getCurrentTabContent() {
-    const activeTab = await getActiveTab();
-    if (!activeTab) return null;
-
-    const results = await chrome.scripting.executeScript({
-        target: {tabId: activeTab.id},
-        function: () => document.body.innerText
-    });
-
-    return {
-        tabId: activeTab.id,
-        content: results[0].result
-    };
-}
-
-async function getActiveTab() {
-    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
-    return tabs[0];
-}
-
-// Helper function to format duration
-function formatDuration(ms) {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    
-    if (hours > 0) {
-        return `${hours}h ${minutes % 60}m`;
-    } else if (minutes > 0) {
-        return `${minutes}m ${seconds % 60}s`;
-    } else {
-        return `${seconds}s`;
-    }
-}
-
-

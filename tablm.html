@@ -191,6 +191,7 @@
           <li><a href="#" id="nav-tabs" class="active-tab">Tabs</a></li>
           <li><a href="#" id="nav-organised-tabs">Organised tabs</a></li>
           <li><a href="#" id="nav-chat">Chat</a></li>
+          <li><a href="#" id="nav-configuration">Configuration</a></li>
         </ul>
       </nav>
       <section id="tabs-list" class="container" ></section>
@@ -199,13 +200,44 @@
         <div id="chat-response" class="chat-box"></div>
         <textarea id="chat-textarea" rows="3"></textarea>
       </section>
-      <form>
-          <fieldset id="settings">
-            <label>
-                Model api key <input id="api-key" type="text"/>
-            </label>
-           </fieldset>
-      </form>
+      <section id="configuration" class="container" style="display: none;">
+        <h3>AI Configuration</h3>
+        <form>
+          <fieldset>
+            <legend>API Settings</legend>
+
+            <label>API Dialect</label>
+            <div>
+              <label>
+                <input type="radio" name="api-dialect" value="anthropic" id="dialect-anthropic" checked>
+                Anthropic API
+              </label>
+              <label>
+                <input type="radio" name="api-dialect" value="openai" id="dialect-openai">
+                OpenAI API
+              </label>
+            </div>
+
+            <label for="provider-select">Provider</label>
+            <select id="provider-select">
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+              <option value="together">Together AI</option>
+              <option value="groq">Groq</option>
+              <option value="custom">Custom</option>
+            </select>
+
+            <label for="custom-endpoint">Endpoint URL</label>
+            <input type="url" id="custom-endpoint" placeholder="https://api.custom-provider.com/v1">
+
+            <label for="model-name">Model Name</label>
+            <input type="text" id="model-name" placeholder="claude-3-5-haiku-latest" value="claude-3-5-haiku-latest">
+
+            <label for="api-key">API Key</label>
+            <input type="text" id="api-key" placeholder="Enter your API key">
+          </fieldset>
+        </form>
+      </section>
     </main>
     <script type="module" src="tablm.js"></script>
   </body>
