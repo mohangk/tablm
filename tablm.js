@@ -19,33 +19,77 @@ const defaultConfig = {
     apiKey: ''
 };
 
-function loadConfiguration() {
-    const stored = localStorage.getItem('aiConfig');
-    if (stored) {
-        try {
-            const parsedConfig = JSON.parse(stored);
-            
-            // Validate that all required properties exist
-            const requiredKeys = Object.keys(defaultConfig);
-            const missingKeys = requiredKeys.filter(key => !(key in parsedConfig));
-            
-            if (missingKeys.length > 0) {
-                console.warn('Stored configuration is missing required properties:', missingKeys, 'Using defaults');
-                return defaultConfig;
-            }
-            
-            return parsedConfig;
-        } catch (error) {
-            console.warn('Failed to parse stored configuration, using defaults:', error);
-            return defaultConfig;
-        }
+function validateAndMergeConfig(config) {
+    const requiredKeys = Object.keys(defaultConfig);
+    const missingKeys = requiredKeys.filter(key => !(key in config));
+
+    if (missingKeys.length > 0) {
+        console.warn('Loaded profile is missing required properties:', missingKeys, 'Using defaults for them.');
+        // Return a new object with defaults for missing keys, preserving existing values
+        return { ...defaultConfig, ...config };
     }
-    return defaultConfig;
+
+    return config; // No missing keys, return as is.
 }
 
-function saveConfiguration(config) {
-    localStorage.setItem('aiConfig', JSON.stringify(config));
-    console.log('Configuration saved:', config);
+function loadConfiguration(profileName) {
+    let profiles = JSON.parse(localStorage.getItem('aiConfigProfiles')) || {};
+    let activeProfileName = localStorage.getItem('activeProfileName');
+
+    // First run: create default profile
+    if (Object.keys(profiles).length === 0) {
+        profiles = { 'default': { ...defaultConfig } };
+        localStorage.setItem('aiConfigProfiles', JSON.stringify(profiles));
+        activeProfileName = 'default';
+        localStorage.setItem('activeProfileName', activeProfileName);
+    }
+
+    // If a specific profile is requested, load it and set it as active
+    if (profileName && profiles[profileName]) {
+        activeProfileName = profileName;
+        localStorage.setItem('activeProfileName', activeProfileName);
+    }
+
+    // Fallback to default if active profile is invalid or not found
+    if (!activeProfileName || !profiles[activeProfileName]) {
+        activeProfileName = 'default';
+        localStorage.setItem('activeProfileName', activeProfileName);
+    }
+
+    const activeProfileConfig = profiles[activeProfileName];
+    
+    return validateAndMergeConfig(activeProfileConfig);
+}
+
+function saveConfiguration(config, profileName) {
+    if (!profileName) {
+        console.error("Profile name is required to save configuration.");
+        return;
+    }
+    const profiles = JSON.parse(localStorage.getItem('aiConfigProfiles')) || {};
+    profiles[profileName] = config;
+    localStorage.setItem('aiConfigProfiles', JSON.stringify(profiles));
+    localStorage.setItem('activeProfileName', profileName); // Set saved profile as active
+    console.log(`Configuration saved to profile '${profileName}':`, config);
+}
+
+function deleteConfiguration(profileName) {
+    if (profileName === 'default') {
+        console.warn("Cannot delete the default profile.");
+        return;
+    }
+    let profiles = JSON.parse(localStorage.getItem('aiConfigProfiles')) || {};
+    if (profiles[profileName]) {
+        delete profiles[profileName];
+        localStorage.setItem('aiConfigProfiles', JSON.stringify(profiles));
+        console.log(`Profile '${profileName}' deleted.`);
+
+        // If the deleted profile was the active one, switch back to default
+        const activeProfileName = localStorage.getItem('activeProfileName');
+        if (activeProfileName === profileName) {
+            localStorage.setItem('activeProfileName', 'default');
+        }
+    }
 }
 
 function getEndpointForProvider(provider, dialect) {
@@ -60,9 +104,57 @@ function getEndpointForProvider(provider, dialect) {
     return endpoints[provider] || endpoints.anthropic;
 }
 
+let configUIMode = 'view'; // Can be 'view', 'edit', or 'create'
+
+function renderConfigUI() {
+    const fieldset = document.getElementById('api-settings-fieldset');
+    const inputs = fieldset.querySelectorAll('input, select');
+    const profileSelect = document.getElementById('profile-select');
+    const newProfileNameInput = document.getElementById('new-profile-name');
+
+    const isViewMode = configUIMode === 'view';
+    const isEditMode = configUIMode === 'edit';
+    const isCreateMode = configUIMode === 'create';
+
+    // Set readonly state for all API settings
+    inputs.forEach(input => input.disabled = isViewMode);
+
+    // Toggle profile selector
+    profileSelect.style.display = isCreateMode ? 'none' : 'block';
+    profileSelect.disabled = !isViewMode;
+    newProfileNameInput.style.display = isCreateMode ? 'block' : 'none';
+
+    // Toggle button visibility
+    document.getElementById('edit-profile-btn').style.display = isViewMode ? 'block' : 'none';
+    document.getElementById('new-profile-btn').style.display = isViewMode ? 'block' : 'none';
+    document.getElementById('save-profile-btn').style.display = isViewMode ? 'none' : 'block';
+    document.getElementById('cancel-profile-btn').style.display = isViewMode ? 'none' : 'block';
+    document.getElementById('delete-profile-btn').style.display = isEditMode ? 'block' : 'none';
+    
+    // Additional logic for delete button based on profile name
+    if (isEditMode) {
+        document.getElementById('delete-profile-btn').disabled = (profileSelect.value === 'default');
+    }
+}
+
 function updateConfigurationUI() {
     const config = loadConfiguration();
-
+    
+    // Populate Profile Dropdown
+    const profileSelect = document.getElementById('profile-select');
+    const profiles = JSON.parse(localStorage.getItem('aiConfigProfiles')) || {};
+    const activeProfileName = localStorage.getItem('activeProfileName');
+    profileSelect.innerHTML = ''; // Clear existing options
+    for (const profileName in profiles) {
+        const option = document.createElement('option');
+        option.value = profileName;
+        option.textContent = profileName;
+        if (profileName === activeProfileName) {
+            option.selected = true;
+        }
+        profileSelect.appendChild(option);
+    }
+    
     // Set dialect radio buttons
     document.getElementById('dialect-anthropic').checked = config.apiDialect === 'anthropic';
     document.getElementById('dialect-openai').checked = config.apiDialect === 'openai';
@@ -85,6 +177,8 @@ function updateConfigurationUI() {
         endpointField.readOnly = true;
         endpointField.style.backgroundColor = '#f5f5f5';
     }
+
+    renderConfigUI(); // Render the UI in its current state
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -216,57 +310,96 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Configuration event listeners (scoped to specific controls)
     function handleDialectChange(e) {
-        const config = loadConfiguration();
-        config.apiDialect = e.target.value;
-        if (config.provider !== 'custom') {
-            config.endpoint = getEndpointForProvider(config.provider, e.target.value);
-            document.getElementById('custom-endpoint').value = config.endpoint;
+        const dialect = e.target.value;
+        const provider = document.getElementById('provider-select').value;
+        if (provider !== 'custom') {
+            const endpoint = getEndpointForProvider(provider, dialect);
+            document.getElementById('custom-endpoint').value = endpoint;
         }
-        saveConfiguration(config);
     }
 
     function handleProviderChange(e) {
-        const config = loadConfiguration();
-        config.provider = e.target.value;
-        config.endpoint = getEndpointForProvider(e.target.value, config.apiDialect);
+        const provider = e.target.value;
+        const dialect = document.querySelector('input[name="api-dialect"]:checked').value;
+        const endpoint = getEndpointForProvider(provider, dialect);
 
         const endpointField = document.getElementById('custom-endpoint');
-        endpointField.value = config.endpoint;
+        endpointField.value = endpoint;
 
-        if (e.target.value === 'custom') {
+        if (provider === 'custom') {
             endpointField.readOnly = false;
             endpointField.style.backgroundColor = '';
         } else {
             endpointField.readOnly = true;
             endpointField.style.backgroundColor = '#f5f5f5';
         }
-
-        saveConfiguration(config);
-    }
-
-    function handleModelChange(e) {
-        const config = loadConfiguration();
-        config.model = e.target.value;
-        saveConfiguration(config);
-    }
-
-    function handleEndpointChange(e) {
-        const config = loadConfiguration();
-        config.endpoint = e.target.value;
-        saveConfiguration(config);
     }
 
     document.getElementById('dialect-anthropic').addEventListener('change', handleDialectChange);
     document.getElementById('dialect-openai').addEventListener('change', handleDialectChange);
     document.getElementById('provider-select').addEventListener('change', handleProviderChange);
-    document.getElementById('model-name').addEventListener('change', handleModelChange);
-    document.getElementById('custom-endpoint').addEventListener('change', handleEndpointChange);
 
-    document.getElementById('api-key').addEventListener('blur', function() {
-        const config = loadConfiguration();
-        config.apiKey = this.value.trim();
-        saveConfiguration(config);
+    // Profile Management Event Listeners
+    document.getElementById('profile-select').addEventListener('change', function() {
+        const selectedProfile = this.value;
+        loadConfiguration(selectedProfile);
+        updateConfigurationUI();
+    });
 
+    document.getElementById('edit-profile-btn').addEventListener('click', function() {
+        configUIMode = 'edit';
+        renderConfigUI();
+    });
+
+    document.getElementById('new-profile-btn').addEventListener('click', function() {
+        configUIMode = 'create';
+        renderConfigUI();
+        // Clear the new profile name field in case it had a value
+        document.getElementById('new-profile-name').value = '';
+    });
+
+    document.getElementById('cancel-profile-btn').addEventListener('click', function() {
+        configUIMode = 'view';
+        // Reload the active profile to discard any changes
+        loadConfiguration(localStorage.getItem('activeProfileName'));
+        updateConfigurationUI();
+    });
+
+    function getCurrentUIConfig() {
+        return {
+            apiDialect: document.querySelector('input[name="api-dialect"]:checked').value,
+            provider: document.getElementById('provider-select').value,
+            endpoint: document.getElementById('custom-endpoint').value,
+            model: document.getElementById('model-name').value,
+            apiKey: document.getElementById('api-key').value.trim()
+        };
+    }
+
+    document.getElementById('save-profile-btn').addEventListener('click', function() {
+        let profileNameToSave;
+        if (configUIMode === 'create') {
+            profileNameToSave = document.getElementById('new-profile-name').value.trim();
+            if (!profileNameToSave) {
+                alert('Please enter a name for the new profile.');
+                return;
+            }
+        } else { // 'edit' mode
+            profileNameToSave = document.getElementById('profile-select').value;
+        }
+        
+        const config = getCurrentUIConfig();
+        saveConfiguration(config, profileNameToSave);
+        
+        configUIMode = 'view';
+        updateConfigurationUI(); // Refresh UI to show new/updated profile
+    });
+
+    document.getElementById('delete-profile-btn').addEventListener('click', function() {
+        const selectedProfile = document.getElementById('profile-select').value;
+        if (confirm(`Are you sure you want to delete the profile "${selectedProfile}"?`)) {
+            deleteConfiguration(selectedProfile);
+            updateConfigurationUI();
+        }
     });
 
     // Initialize configuration UI

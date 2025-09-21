@@ -17,6 +17,13 @@ A simple Chrome extension to help bring more "smarts" to managing your tabs
 
 ### Recent Changes
 
+#### Advanced Profile Management & UI Overhaul (2025-09-21)
+- **Advanced Profile Management**: Implemented a full CRUD (Create, Read, Update, Delete) system for managing multiple configuration profiles, complete with a persistent 'default' profile to prevent errors.
+- **Stateful UI Workflow**: The configuration UI is now stateful, with distinct 'view', 'edit', and 'create' modes. This prevents accidental edits and makes the user flow more intentional.
+- **Explicit Save Model**: Removed the old auto-saving behavior. Changes to a profile are now only persisted when the "Save" button is explicitly clicked.
+- **Improved UX**: Selecting a profile from the dropdown automatically loads it in a read-only state. A "Cancel" button was added to easily discard any changes.
+- **Polished UI Layout**: Refined the CSS to create a cleaner, more compact, and better-aligned layout in the configuration panel, resizing oversized controls and improving spacing.
+
 #### Configuration Management Improvements (2025-09-21)
 - **Complete configuration system overhaul**: Added comprehensive AI configuration management with support for multiple providers (Anthropic, OpenAI, Together AI, Groq, Custom)
 - **New configuration UI**: Added dedicated Configuration tab with provider selection, model configuration, and endpoint management

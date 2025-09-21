@@ -166,6 +166,32 @@
         }
       }
 
+      /* Custom styles for smaller configuration buttons */
+      #configuration button {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        height: auto;
+        margin: 0; /* Let the container handle spacing */
+      }
+      
+      /* Tidy up config form layout */
+      #configuration fieldset {
+        margin-bottom: 1.5rem;
+      }
+
+      #configuration input[type="text"],
+      #configuration input[type="url"],
+      #configuration select {
+        height: 2.25rem;
+        font-size: 0.875rem;
+        padding: 0 0.75rem;
+      }
+
+      .profile-buttons-container {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+      }
     </style>
     <title>TabLM</title>
   </head>
@@ -204,6 +230,23 @@
         <h3>AI Configuration</h3>
         <form>
           <fieldset>
+            <legend>Profile Management</legend>
+            <label for="profile-select">Configuration Profile</label>
+            <div id="profile-selector-container">
+                <select id="profile-select"></select>
+                <input type="text" id="new-profile-name" placeholder="Enter new profile name" style="display: none;">
+            </div>
+            
+            <div class="profile-buttons-container">
+              <button id="edit-profile-btn" type="button">Edit</button>
+              <button id="new-profile-btn" type="button">New Profile</button>
+              <button id="delete-profile-btn" type="button" style="display: none;">Delete</button>
+              <button id="save-profile-btn" type="button" style="display: none;">Save</button>
+              <button id="cancel-profile-btn" type="button" style="display: none;">Cancel</button>
+            </div>
+          </fieldset>
+
+          <fieldset id="api-settings-fieldset">
             <legend>API Settings</legend>
 
             <label>API Dialect</label>
