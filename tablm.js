@@ -19,6 +19,35 @@ const defaultConfig = {
     apiKey: ''
 };
 
+// Shared JSON Schema for tab categories structured output
+const tabCategoriesJsonSchema = {
+    name: 'TabCategories',
+    schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+            categories: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                        name: { type: 'string', minLength: 1, maxLength: 60 },
+                        tabIds: {
+                            type: 'array',
+                            items: { type: 'integer' },
+                            minItems: 0
+                        }
+                    },
+                    required: ['name', 'tabIds']
+                }
+            }
+        },
+        required: ['categories']
+    },
+    strict: true
+};
+
 function validateAndMergeConfig(config) {
     const requiredKeys = Object.keys(defaultConfig);
     const missingKeys = requiredKeys.filter(key => !(key in config));
@@ -483,22 +512,23 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 
 //send prompt to AI (supports multiple API dialects)
-function sendPromptToAI(prompt, context = '', config) {
+function sendPromptToAI(prompt, context = '', config, jsonSchema = null) {
     const fullPrompt = context ? `${prompt}\n\n${context}` : prompt;
 
     console.log("sending prompt to AI", {
         prompt: prompt.substring(0, 100) + '...',
-        config: config
+        config: config,
+        structured: !!jsonSchema
     });
 
     if (config.apiDialect === 'anthropic') {
-        return sendAnthropicRequest(fullPrompt, config);
+        return sendAnthropicRequest(fullPrompt, config, jsonSchema);
     } else {
-        return sendOpenAIRequest(fullPrompt, config);
+        return sendOpenAIRequest(fullPrompt, config, jsonSchema);
     }
 }
 
-function sendAnthropicRequest(prompt, config) {
+function sendAnthropicRequest(prompt, config, jsonSchema = null) {
     return fetch(config.endpoint, {
         method: "POST",
         headers: {
@@ -523,7 +553,7 @@ function sendAnthropicRequest(prompt, config) {
     .then((response) => response.json());
 }
 
-function sendOpenAIRequest(prompt, config) {
+function sendOpenAIRequest(prompt, config, jsonSchema = null) {
     return fetch(config.endpoint, {
         method: "POST",
         headers: {
@@ -533,6 +563,7 @@ function sendOpenAIRequest(prompt, config) {
         body: JSON.stringify({
             model: config.model,
             max_completion_tokens: 8192,
+            response_format: jsonSchema ? { type: "json_schema", json_schema: jsonSchema } : undefined,
             messages: [
                 {
                     role: "user",
@@ -550,15 +581,25 @@ function extractResponseContent(response, config) {
         return { error: response.error };
     }
 
+    let text = null;
+
     if (config.apiDialect === 'anthropic') {
-        // Anthropic format: response.content[0].text
         if (response.content && response.content[0] && response.content[0].text) {
-            return { content: response.content[0].text };
+            text = response.content[0].text;
         }
     } else {
-        // OpenAI format: response.choices[0].message.content
         if (response.choices && response.choices[0] && response.choices[0].message) {
-            return { content: response.choices[0].message.content };
+            text = response.choices[0].message.content;
+        }
+    }
+
+    if (typeof text === 'string') {
+        try {
+            const parsed = JSON.parse(text);
+            return { content: text, json: parsed };
+        } catch (e) {
+            // Not JSON or provider returned plain text (e.g., chat use-case)
+            return { content: text };
         }
     }
 
@@ -754,15 +795,17 @@ async function queryClaudeForTabs(tabs) {
     const prompt = `<task>Organize ${allTabs.length} browser tabs into logical categories based on their content and purpose. Every tab must be assigned to exactly one category - ensure all ${allTabs.length} tabs are categorized.</task>
 
 <output_format>
-The response should be a valid JSON object where:
-- keys are category names (e.g. "AI research", "Engineering productivity", "Architecture research", "Meeting notes", "Strategy docs", "1-1 notes", "News", "Postmortems", "Technical docs", "News")
-- values are arrays containing ONLY tab IDs (numbers)
-- the sum of all tabs across categories must equal ${allTabs.length}
-Example structure:
+Return a JSON object with this exact shape:
 {
-    "Category1": [1, 2],
-    "Category2": [3, 4]
+  "categories": [
+    { "name": "Category1", "tabIds": [1, 2] },
+    { "name": "Category2", "tabIds": [3, 4] }
+  ]
 }
+Rules:
+- Category names must be concise and human-friendly
+- tabIds must be numbers
+- Every tab must appear exactly once across all tabIds
 </output_format>
 
 <input_data>
@@ -772,7 +815,7 @@ ${JSON.stringify(allTabs, null, 2)}
 Return ONLY the JSON object, with no additional text or explanation.`.trim();
 
     try {
-        const response = await sendPromptToAI(prompt, '', config);
+        const response = await sendPromptToAI(prompt, '', config, tabCategoriesJsonSchema);
         const result = extractResponseContent(response, config);
 
         if (result.error) {
@@ -780,8 +823,25 @@ Return ONLY the JSON object, with no additional text or explanation.`.trim();
             return null;
         }
 
-        // Parse the JSON response from AI (contains only categories and tab IDs)
-        const categorizedTabIds = JSON.parse(result.content);
+        // Parse strictly according to the schema wire format
+        let parsed = result.json || null;
+        if (!parsed && result.content) {
+            try { parsed = JSON.parse(result.content); } catch (e) { /* ignore */ }
+        }
+        if (!parsed || !parsed.categories || !Array.isArray(parsed.categories)) {
+            console.error('AI response missing required categories array');
+            return null;
+        }
+
+        const categorizedTabIds = {};
+        parsed.categories.forEach((item) => {
+            if (!item || typeof item !== 'object') { return; }
+            const name = item.name;
+            const ids = item.tabIds;
+            if (typeof name === 'string' && Array.isArray(ids)) {
+                categorizedTabIds[name] = ids.filter((n) => Number.isInteger(n));
+            }
+        });
 
         // Update cache - store only the tabs object and categories
         tabsCache.tabs = tabs;

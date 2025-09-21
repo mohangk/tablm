@@ -62,6 +62,11 @@ Tabs are stored as a flat object indexed by tab ID:
 - **Prompts**: Structured XML prompts for tab organization with explicit JSON output format
 - **Context**: Page content extraction for chat functionality
 - **Caching**: Intelligent caching system reduces API calls
+- **Structured Output**: Tab organization uses a schema-driven wire format
+  - Wire format (JSON): `{ "categories": [ { "name": string, "tabIds": number[] }, ... ] }`
+  - OpenAI: uses `response_format: { type: "json_schema", json_schema: TabCategories }` and `max_completion_tokens`
+  - Anthropic: relies on the prompt to return the same array-of-objects shape (no response_format)
+  - Parser accepts only the schema shape and converts it to `{ [name]: number[] }`
 
 ## Development
 
@@ -78,7 +83,9 @@ Tabs are stored as a flat object indexed by tab ID:
 - `getOrganizedTabsFromClaude(tabs)`: Handles AI-powered tab organization with caching
 - `haveTabsChanged(tabs)`: Smart change detection for cache invalidation
 - `registerTabEventHandlers()`: Sets up tab interaction event listeners
-- `sendPromptToAI(prompt, context, config)`: Core AI API interface that accepts configuration as-is
+- `sendPromptToAI(prompt, context, config, jsonSchema?)`: Core AI API interface; when `jsonSchema` is provided, OpenAI uses structured output
+- `sendOpenAIRequest`/`sendAnthropicRequest`: Provider-specific request builders
+- `extractResponseContent(response, config)`: Parses provider responses and returns `{ content, json? }`
 - Configuration handlers: `handleDialectChange()`, `handleProviderChange()`, `handleModelChange()`, `handleEndpointChange()`
 
 #### tabList.js
@@ -90,7 +97,6 @@ Tabs are stored as a flat object indexed by tab ID:
 - Local storage for API configuration persistence (visible API keys for debugging)
 - In-memory caching for organized tabs
 - Per-tab chat history storage (`lastChatResponse` object)
-- Scoped event handlers for configuration controls (improved from global document listener)
 
 ### UI Views
 1. **Tabs**: Standard tab list with search and sort
@@ -108,3 +114,4 @@ No automated test framework is currently configured. Manual testing through Chro
 - Extension requires Chrome's `activeTab`, `scripting`, `sidePanel`, `storage`, and `tabs` permissions
 - Uses ES6 modules for modular code organization
 - Configuration event handling uses specific, scoped listeners instead of global document listener
+- When targeting OpenAI structured output, avoid unsupported schema keywords (e.g., `uniqueItems`)

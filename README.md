@@ -17,6 +17,14 @@ A simple Chrome extension to help bring more "smarts" to managing your tabs
 
 ### Recent Changes
 
+#### Structured Output for Tab Organization (2025-09-21)
+- Switched to a schema-based wire format for tab organization responses.
+- JSON Schema `TabCategories`: `{ "categories": [ { "name": string, "tabIds": number[] }, ... ] }`.
+- OpenAI: uses `response_format: { type: "json_schema", json_schema: TabCategories }` and `max_completion_tokens`.
+- Anthropic: does not use `response_format`; prompt updated to request the same array-of-objects shape.
+- Parser simplified to only accept the schema wire format; builds `{ [name]: number[] }` internally.
+- Adjusted schema to comply with provider subset (removed `uniqueItems`).
+
 #### Advanced Profile Management & UI Overhaul (2025-09-21)
 - **Advanced Profile Management**: Implemented a full CRUD (Create, Read, Update, Delete) system for managing multiple configuration profiles, complete with a persistent 'default' profile to prevent errors.
 - **Stateful UI Workflow**: The configuration UI is now stateful, with distinct 'view', 'edit', and 'create' modes. This prevents accidental edits and makes the user flow more intentional.
